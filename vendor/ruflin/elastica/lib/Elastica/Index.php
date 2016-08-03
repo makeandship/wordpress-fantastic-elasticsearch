@@ -67,11 +67,13 @@ class Index implements SearchableInterface
      * Returns the current status of the index
      *
      * @return \Elastica\Index\Status Index status
+     * NOT NEEDED FOR ES 2.0
+     *
+     * public function getStatus()
+     * {
+     *    return new IndexStatus($this);
+     * }
      */
-    public function getStatus()
-    {
-        return new IndexStatus($this);
-    }
 
     /**
      * Return Index Stats
