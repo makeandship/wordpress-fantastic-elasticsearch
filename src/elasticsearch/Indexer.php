@@ -184,7 +184,7 @@ class Indexer
 		$keys = get_post_custom_keys($post->ID);
 
 		if (is_array($keys)) {
-			$meta_fields = array_intersect(Config::meta_fields(), $keys);
+			$meta_fields = self::_build_meta_values_match_keys( $keys, Config::meta_fields());
 
 			foreach ($meta_fields as $field) {
 				$val = get_post_meta($post->ID, $field, true);
@@ -196,6 +196,34 @@ class Indexer
 		}
 
 		return $document;
+	}
+
+	/**
+	 * Match custom fields provided by the elastic field configuration with
+	 * fields in a post
+	 * 
+	 */
+	private static function _build_meta_values_match_keys( $keys, $configs ) {
+		$matches = array();
+
+		if (isset($keys)) {
+			foreach($keys as $key) {
+				foreach($configs as $config) {
+					if (strrpos($config, ".") > -1) {
+						$pattern = "/^".str_replace( ".", "_[0-9]+_", $config)."/";
+						
+						if (preg_match( $pattern, $key)) {
+							$matches[] = $key;
+						}
+					}
+					else if ($key === $config) {
+						$matches[] = $key;
+					}
+				}
+			}
+		}
+
+		return $matches;
 	}
 
 	/**
