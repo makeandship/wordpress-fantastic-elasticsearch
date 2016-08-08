@@ -112,20 +112,19 @@ class Defaults
 		$type = $field['type'];
 		$name = $field['name'];
 		
-		if ($field['type'] === 'repeater') {
-			if (array_key_exists( 'sub_fields', $field )) {
-				$prefix = isset($prefix) ? $prefix.".".$name : $name;
+		if (isset($name) && !empty($name)) {
+			if ($field['type'] === 'repeater') {
+				if (array_key_exists( 'sub_fields', $field )) {
+					$prefix = isset($prefix) ? $prefix.".".$name : $name;
 
-				foreach($field['sub_fields'] as $sub_field) {
-					$keys = array_merge( $keys, self::meta_fields_type( $prefix, $sub_field ));
+					foreach($field['sub_fields'] as $sub_field) {
+						$keys = array_merge( $keys, self::meta_fields_type( $prefix, $sub_field ));
+					}
 				}
 			}
 			else {
 				$keys[] = isset($prefix) ? $prefix.".".$name : $name;
 			}
-		}
-		else {
-			$keys[] = isset($prefix) ? $prefix.".".$name : $name;
 		}
 
 		return $keys;
