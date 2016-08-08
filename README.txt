@@ -3,8 +3,8 @@ Contributors: parisholley
 Donate link: https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=paris%40holleywoodproductions%2ecom&lc=US&item_name=Paris%20Holley&no_note=0&currency_code=USD&bn=PP%2dDonationsBF%3abtn_donateCC_LG%2egif%3aNonHostedGuest
 Tags: search,performance,elastic search,elastic,elasticsearch,facet,faceting,faceted search
 Requires at least: 3.5
-Tested up to: 4.0
-Stable tag: 3.1.1
+Tested up to: 4.5.1
+Stable tag: 4.1.1
 
 Improve wordpress search performance/accuracy and enable faceted search by leveraging an ElasticSearch server.
 
@@ -41,6 +41,39 @@ https://github.com/parisholley/wordpress-fantastic-elasticsearch/wiki
 4. Wipe and re-index data is available if needed
 
 == Changelog ==
+
+= 4.1.1 =
+* pass all data points to custom facet filter for efficiency
+* allow wp to act on exception (ie: rethrow)
+
+= 4.1.0 =
+* support for secondary index to prevent wiping production data live
+
+= 4.0.6 =
+* allow custom facets to be filtered when searching
+* allow child taxonomies to be faceted when on taxonomy page
+* allow or faceting to filter counts on unrelated facets for a more intuitive interface
+
+= 4.0.5 =
+* bug fix
+
+= 4.0.4 =
+* Support for using facet API when providing custom data
+* Control whether parent categories are included when indexed
+* Additional filters
+
+= 4.0.3 =
+* Exact matches in title, etc will rank higher now in results
+
+= 4.0.2 =
+* post_type should not be analyzed
+
+= 4.0.1 =
+* Fixed bugs in admin
+
+= 4.0.0 =
+* Tested against Wordpress 4.5.1
+* Upgrade Elastica to latest api, this plugin now requires ElasticSearch 2.x
 
 = 3.1.1 =
 * Updated to latest composer

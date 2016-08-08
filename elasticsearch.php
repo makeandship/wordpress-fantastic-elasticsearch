@@ -3,7 +3,7 @@
 Plugin Name: Fantastic ElasticSearch
 Plugin URI: http://wordpress.org/extend/plugins/fantastic-elasticsearch/
 Description: Improve wordpress search performance and accuracy by leveraging an ElasticSearch server.
-Version: 3.1.1
+Version: 4.1.1
 Author: Paris Holley
 Author URI: http://www.linkedin.com/in/parisholley
 Author Email: mail@parisholley.com
@@ -107,21 +107,19 @@ add_action('admin_init', function(){
 	}
 });
 
-add_action('init', function(){
-	Theme::enableAjaxHooks();
-
+add_action('admin_menu', function () {
 	$args = array();
 
 	$args['share_icons']['twitter'] = array(
 		'link' => 'http://twitter.com/parisholley',
-		'title' => 'Folow me on Twitter', 
-		'img' => NHP_OPTIONS_URL.'img/glyphicons/glyphicons_322_twitter.png'
+		'title' => 'Folow me on Twitter',
+		'img' => NHP_OPTIONS_URL . 'img/glyphicons/glyphicons_322_twitter.png'
 	);
 
 	$args['share_icons']['linked_in'] = array(
 		'link' => 'http://www.linkedin.com/in/parisholley',
-		'title' => 'Find me on LinkedIn', 
-		'img' => NHP_OPTIONS_URL.'img/glyphicons/glyphicons_337_linked_in.png'
+		'title' => 'Find me on LinkedIn',
+		'img' => NHP_OPTIONS_URL . 'img/glyphicons/glyphicons_337_linked_in.png'
 	);
 
 	$args['opt_name'] = 'elasticsearch';
@@ -145,11 +143,16 @@ add_action('init', function(){
 
 	global $NHP_Options;
 
-    	$tabs = array();
+	$tabs = array();
 
 	$sections = Config::apply_filters("nhp_options_section_setup", $sections);
 	$args = Config::apply_filters("nhp_options_args_setup", $args);
 
 	$NHP_Options = new \NHP_Options($sections, $args, $tabs);
+});
+
+
+add_action('init', function(){
+	Theme::enableAjaxHooks();
 }, 10241988);
 ?>

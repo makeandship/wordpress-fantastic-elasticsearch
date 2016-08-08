@@ -183,9 +183,10 @@ class SearcherTest extends BaseTestCase
 		), $filters);
 	}
 
-	public function testBuildQuery(){
+	public function testBuildQuery()
+	{
 		update_option('fields', array());
-		
+
 		$searcher = new Searcher();
 
 		$query = $searcher->_buildQuery('string');
@@ -205,7 +206,8 @@ class SearcherTest extends BaseTestCase
 		), $query);
 	}
 
-	public function testBuildQueryFieldWithScore(){
+	public function testBuildQueryFieldWithScore()
+	{
 		update_option('fields', array('field1' => 1));
 		update_option('score_field_field1', 1);
 
@@ -219,7 +221,7 @@ class SearcherTest extends BaseTestCase
 			'query' => array(
 				'bool' => array(
 					'must' => array(
-						array(				
+						array(
 							'query_string' => array(
 								'fields' => array('field1.english^1'),
 								'query' => 'string'
@@ -227,7 +229,7 @@ class SearcherTest extends BaseTestCase
 						)
 					)
 				)
-			),			
+			),
 			'filter' => array(
 				'bool' => array(
 					'must' => array(
@@ -242,7 +244,8 @@ class SearcherTest extends BaseTestCase
 		), $query);
 	}
 
-	public function testBuildQueryTaxonomiesWithScoreFuzzy(){
+	public function testBuildQueryTaxonomiesWithScoreFuzzy()
+	{
 		update_option('taxonomies', array('tax1' => 1));
 		update_option('score_tax_tax1', 1);
 		update_option('fields', array());
@@ -257,7 +260,7 @@ class SearcherTest extends BaseTestCase
 			'query' => array(
 				'bool' => array(
 					'must' => array(
-						array(				
+						array(
 							'query_string' => array(
 								'fields' => array('tax1_name^1'),
 								'query' => 'string~'
@@ -273,17 +276,13 @@ class SearcherTest extends BaseTestCase
 							'term' => array(
 								'blog_id' => 1
 							)
-						)		
+						)
 					)
 				)
 			),
-			'facets' => array(
+			'aggs' => array(
 				'tax1' => array(
-					'terms' => array(
-						'field' => 'tax1',
-						'size' => 100
-					),
-					'facet_filter' => array(
+					'filter' => array(
 						'bool' => array(
 							'must' => array(
 								array(
@@ -293,13 +292,22 @@ class SearcherTest extends BaseTestCase
 								)
 							)
 						)
+					),
+					'aggs' => array(
+						'facet' => array(
+							'terms' => array(
+								'field' => 'tax1',
+								'size' => 100
+							)
+						)
 					)
 				)
 			)
 		), $query);
 	}
 
-	public function testBuildQueryTaxonomiesWithScore(){
+	public function testBuildQueryTaxonomiesWithScore()
+	{
 		update_option('taxonomies', array('tax1' => 1));
 		update_option('score_tax_tax1', 1);
 		update_option('fields', array());
@@ -314,7 +322,7 @@ class SearcherTest extends BaseTestCase
 			'query' => array(
 				'bool' => array(
 					'must' => array(
-						array(				
+						array(
 							'query_string' => array(
 								'fields' => array('tax1_name^1'),
 								'query' => 'string'
@@ -330,17 +338,13 @@ class SearcherTest extends BaseTestCase
 							'term' => array(
 								'blog_id' => 1
 							)
-						)		
+						)
 					)
 				)
 			),
-			'facets' => array(
+			'aggs' => array(
 				'tax1' => array(
-					'terms' => array(
-						'field' => 'tax1',
-						'size' => 100
-					),
-					'facet_filter' => array(
+					'filter' => array(
 						'bool' => array(
 							'must' => array(
 								array(
@@ -350,13 +354,22 @@ class SearcherTest extends BaseTestCase
 								)
 							)
 						)
+					),
+					'aggs' => array(
+						'facet' => array(
+							'terms' => array(
+								'field' => 'tax1',
+								'size' => 100
+							)
+						)
 					)
 				)
 			)
 		), $query);
 	}
 
-	public function testBuildQueryTaxonomiesNotScored(){
+	public function testBuildQueryTaxonomiesNotScored()
+	{
 		update_option('taxonomies', array('tax1' => 1));
 		update_option('fields', array());
 
@@ -377,14 +390,10 @@ class SearcherTest extends BaseTestCase
 						)
 					)
 				)
-			),			
-			'facets' => array(
+			),
+			'aggs' => array(
 				'tax1' => array(
-					'terms' => array(
-						'field' => 'tax1',
-						'size' => 100
-					),
-					'facet_filter' => array(
+					'filter' => array(
 						'bool' => array(
 							'must' => array(
 								array(
@@ -394,13 +403,22 @@ class SearcherTest extends BaseTestCase
 								)
 							)
 						)
+					),
+					'aggs' => array(
+						'facet' => array(
+							'terms' => array(
+								'field' => 'tax1',
+								'size' => 100
+							)
+						),
 					)
 				)
 			)
 		), $query);
 	}
 
-	public function testBuildQueryTaxonomiesWithFaceting(){
+	public function testBuildQueryTaxonomiesWithFaceting()
+	{
 		update_option('taxonomies', array('tax1' => 1));
 		update_option('fields', array());
 
@@ -434,14 +452,10 @@ class SearcherTest extends BaseTestCase
 						)
 					)
 				)
-			),			
-			'facets' => array(
+			),
+			'aggs' => array(
 				'tax1' => array(
-					'terms' => array(
-						'field' => 'tax1',
-						'size' => 100
-					),
-					'facet_filter' => array(
+					'filter' => array(
 						'bool' => array(
 							'must' => array(
 								array(
@@ -451,13 +465,22 @@ class SearcherTest extends BaseTestCase
 								)
 							)
 						)
+					),
+					'aggs' => array(
+						'facet' => array(
+							'terms' => array(
+								'field' => 'tax1',
+								'size' => 100
+							)
+						)
 					)
 				)
 			)
 		), $query);
 	}
 
-	public function testBuildQueryTaxonomiesWithFacetingShoulds(){
+	public function testBuildQueryTaxonomiesWithFacetingShoulds()
+	{
 		update_option('taxonomies', array('tax1' => 1));
 		update_option('fields', array());
 
@@ -473,21 +496,28 @@ class SearcherTest extends BaseTestCase
 
 		$query = $searcher->_buildQuery('string', $facets);
 
-		$this->assertEquals(array(		
+		$this->assertEquals(array(
 			'filter' => array(
 				'bool' => array(
 					'should' => array(
 						array(
-							'term' => array(
-								'tax1' => 'value1'
-							)
-						),
-						array(
-							'term' => array(
-								'tax1' => 'value2'
+							'bool' => array(
+								'should' => array(
+									array(
+										'term' => array(
+											'tax1' => 'value1'
+										)
+									),
+									array(
+										'term' => array(
+											'tax1' => 'value2'
+										)
+									)
+								)
 							)
 						)
 					),
+					'minimum_should_match' => 1,
 					'must' => array(
 						array(
 							'term' => array(
@@ -497,13 +527,9 @@ class SearcherTest extends BaseTestCase
 					)
 				)
 			),
-			'facets' => array(
+			'aggs' => array(
 				'tax1' => array(
-					'terms' => array(
-						'field' => 'tax1',
-						'size' => 100
-					),
-					'facet_filter' => array(
+					'filter' => array(
 						'bool' => array(
 							'must' => array(
 								array(
@@ -513,13 +539,22 @@ class SearcherTest extends BaseTestCase
 								)
 							)
 						)
+					),
+					'aggs' => array(
+						'facet' => array(
+							'terms' => array(
+								'field' => 'tax1',
+								'size' => 100
+							)
+						)
 					)
 				)
 			)
 		), $query);
 	}
 
-	public function testBuildQueryMultipleTaxonomiesWithFacetingShoulds(){
+	public function testBuildQueryMultipleTaxonomiesWithFacetingShoulds()
+	{
 		update_option('taxonomies', array('tax1' => 1, 'tax2' => 1));
 		update_option('fields', array());
 
@@ -539,7 +574,7 @@ class SearcherTest extends BaseTestCase
 		$this->assertEquals(array(
 			'query' => array(
 				'bool' => array(
-					'must' => array(		
+					'must' => array(
 						array(
 							'term' => array(
 								'tax2' => 'value3'
@@ -552,16 +587,23 @@ class SearcherTest extends BaseTestCase
 				'bool' => array(
 					'should' => array(
 						array(
-							'term' => array(
-								'tax1' => 'value1'
-							)
+							'bool' => array(
+								'should' => array(
+									array(
+										'term' => array(
+											'tax1' => 'value1'
+										)
+									),
+									array(
+										'term' => array(
+											'tax1' => 'value2'
+										)
+									)
+								),
+							),
 						),
-						array(
-							'term' => array(
-								'tax1' => 'value2'
-							)
-						)
 					),
+					'minimum_should_match' => 1,
 					'must' => array(
 						array(
 							'term' => array(
@@ -571,13 +613,9 @@ class SearcherTest extends BaseTestCase
 					)
 				)
 			),
-			'facets' => array(
+			'aggs' => array(
 				'tax1' => array(
-					'terms' => array(
-						'field' => 'tax1',
-						'size' => 100
-					),
-					'facet_filter' => array(
+					'filter' => array(
 						'bool' => array(
 							'must' => array(
 								array(
@@ -587,14 +625,18 @@ class SearcherTest extends BaseTestCase
 								)
 							)
 						)
-					)
+					),
+					'aggs' => array(
+						'facet' => array(
+							'terms' => array(
+								'field' => 'tax1',
+								'size' => 100
+							)
+						),
+					),
 				),
 				'tax2' => array(
-					'terms' => array(
-						'field' => 'tax2',
-						'size' => 100
-					),
-					'facet_filter' => array(
+					'filter' => array(
 						'bool' => array(
 							'must' => array(
 								array(
@@ -603,18 +645,33 @@ class SearcherTest extends BaseTestCase
 									)
 								)
 							),
+							'minimum_should_match' => 1,
 							'should' => array(
 								array(
-									'term' => array(
-										'tax1' => 'value1'
-									)
+									'bool' => array(
+										'should' => array(
+											array(
+												'term' => array(
+													'tax1' => 'value1'
+												)
+											),
+											array(
+												'term' => array(
+													'tax1' => 'value2'
+												)
+											)
+										),
+									),
 								),
-								array(
-									'term' => array(
-										'tax1' => 'value2'
-									)
-								)
-							),
+							)
+						)
+					),
+					'aggs' => array(
+						'facet' => array(
+							'terms' => array(
+								'field' => 'tax2',
+								'size' => 100
+							)
 						)
 					)
 				)
@@ -622,7 +679,8 @@ class SearcherTest extends BaseTestCase
 		), $query);
 	}
 
-	public function testBuildQueryNumericNoRange(){
+	public function testBuildQueryNumericNoRange()
+	{
 		update_option('numeric', array('field1' => 1));
 		update_option('fields', array('field1' => 1, 'field2' => 1));
 
@@ -647,7 +705,8 @@ class SearcherTest extends BaseTestCase
 		), $query);
 	}
 
-	public function testBuildQueryNumericWithRange(){
+	public function testBuildQueryNumericWithRange()
+	{
 		update_option('numeric', array('field1' => 1));
 		update_option('fields', array('field1' => 1, 'field2' => 1));
 		update_option('field1_range', '-10,10-20,20-');
@@ -670,23 +729,9 @@ class SearcherTest extends BaseTestCase
 					)
 				)
 			),
-			'facets' => array(
+			'aggs' => array(
 				'field1' => array(
-					'range' => array(
-						'field1' => array(
-							array(
-								'to' => 10
-							),
-							array(
-								'from' => 10,
-								'to' => 20
-							),
-							array(
-								'from' => 20
-							),
-						)
-					),
-					'facet_filter' => array(
+					'filter' => array(
 						'bool' => array(
 							'must' => array(
 								array(
@@ -696,13 +741,33 @@ class SearcherTest extends BaseTestCase
 								)
 							)
 						)
-					)
+					),
+					'aggs' => array(
+						'range' => array(
+							'range' => array(
+								'field' => 'field1',
+								'ranges' => array(
+									array(
+										'to' => '10'
+									),
+									array(
+										'from' => '10',
+										'to' => '20'
+									),
+									array(
+										'from' => '20'
+									),
+								)
+							)
+						),
+					),
 				)
 			)
 		), $query);
 	}
 
-	public function testBuildQueryNumericWithRangeFacted(){
+	public function testBuildQueryNumericWithRangeFacted()
+	{
 		update_option('numeric', array('field1' => 1));
 		update_option('fields', array('field1' => 1, 'field2' => 1));
 		update_option('field1_range', '-10,10-20,20-');
@@ -725,8 +790,8 @@ class SearcherTest extends BaseTestCase
 						array(
 							'range' => array(
 								'field1' => array(
-									'from' => 10,
-									'to' => 20
+									'gte' => 10,
+									'lt' => 20
 								)
 							)
 						)
@@ -744,23 +809,9 @@ class SearcherTest extends BaseTestCase
 					)
 				)
 			),
-			'facets' => array(
+			'aggs' => array(
 				'field1' => array(
-					'range' => array(
-						'field1' => array(
-							array(
-								'to' => 10
-							),
-							array(
-								'from' => 10,
-								'to' => 20
-							),
-							array(
-								'from' => 20
-							),
-						)
-					),
-					'facet_filter' => array(
+					'filter' => array(
 						'bool' => array(
 							'must' => array(
 								array(
@@ -770,13 +821,33 @@ class SearcherTest extends BaseTestCase
 								)
 							)
 						)
+					),
+					'aggs' => array(
+						'range' => array(
+							'range' => array(
+								'field' => 'field1',
+								'ranges' => array(
+									array(
+										'to' => '10'
+									),
+									array(
+										'from' => '10',
+										'to' => '20'
+									),
+									array(
+										'from' => '20'
+									),
+								)
+							)
+						),
 					)
 				)
 			)
 		), $query);
 	}
 
-	public function testBuildQueryNumericWithRangeFactedWithTax(){
+	public function testBuildQueryNumericWithRangeFactedWithTax()
+	{
 		update_option('numeric', array('field1' => 1));
 		update_option('fields', array('field1' => 1, 'field2' => 1));
 		update_option('field1_range', '-10,10-20,20-');
@@ -805,8 +876,8 @@ class SearcherTest extends BaseTestCase
 						array(
 							'range' => array(
 								'field1' => array(
-									'from' => 10,
-									'to' => 20
+									'gte' => 10,
+									'lt' => 20
 								)
 							)
 						)
@@ -817,16 +888,23 @@ class SearcherTest extends BaseTestCase
 				'bool' => array(
 					'should' => array(
 						array(
-							'term' => array(
-								'tax1' => 'value1'
-							)
+							'bool' => array(
+								'should' => array(
+									array(
+										'term' => array(
+											'tax1' => 'value1'
+										)
+									),
+									array(
+										'term' => array(
+											'tax1' => 'value2'
+										)
+									)
+								),
+							),
 						),
-						array(
-							'term' => array(
-								'tax1' => 'value2'
-							)
-						)
 					),
+					'minimum_should_match' => 1,
 					'must' => array(
 						array(
 							'term' => array(
@@ -836,23 +914,9 @@ class SearcherTest extends BaseTestCase
 					)
 				)
 			),
-			'facets' => array(
+			'aggs' => array(
 				'field1' => array(
-					'range' => array(
-						'field1' => array(
-							array(
-								'to' => 10
-							),
-							array(
-								'from' => 10,
-								'to' => 20
-							),
-							array(
-								'from' => 20
-							),
-						)
-					),
-					'facet_filter' => array(
+					'filter' => array(
 						'bool' => array(
 							'must' => array(
 								array(
@@ -862,14 +926,29 @@ class SearcherTest extends BaseTestCase
 								)
 							)
 						)
+					),
+					'aggs' => array(
+						'range' => array(
+							'range' => array(
+								'field' => 'field1',
+								'ranges' => array(
+									array(
+										'to' => '10'
+									),
+									array(
+										'from' => '10',
+										'to' => '20'
+									),
+									array(
+										'from' => '20'
+									),
+								)
+							)
+						)
 					)
 				),
 				'tax1' => array(
-					'terms' => array(
-						'field' => 'tax1',
-						'size' => 100
-					),
-					'facet_filter' => array(
+					'filter' => array(
 						'bool' => array(
 							'must' => array(
 								array(
@@ -877,6 +956,14 @@ class SearcherTest extends BaseTestCase
 										'blog_id' => 1
 									)
 								)
+							)
+						)
+					),
+					'aggs' => array(
+						'facet' => array(
+							'terms' => array(
+								'field' => 'tax1',
+								'size' => 100
 							)
 						)
 					)
@@ -885,7 +972,8 @@ class SearcherTest extends BaseTestCase
 		), $query);
 	}
 
-	public function testParseResponse(){
+	public function testParseResponse()
+	{
 		$searcher = new Searcher();
 
 		$data = array(
@@ -906,30 +994,34 @@ class SearcherTest extends BaseTestCase
 					)
 				)
 			),
-			'facets' => array(
+			'aggregations' => array(
 				'name1' => array(
-					'terms' => array(
-						array(
-							'term' => 'term1',
-							'count' => 10
-						),
-						array(
-							'term' => 'term2',
-							'count' => 15
+					'facet' => array(
+						'buckets' => array(
+							array(
+								'key' => 'term1',
+								'doc_count' => 10
+							),
+							array(
+								'key' => 'term2',
+								'doc_count' => 15
+							)
 						)
 					)
 				),
 				'range1' => array(
-					'ranges' => array(
-						array(
-							'from' => 0,
-							'to' => 10,
-							'count' => 15
-						),
-						array(
-							'from' => 10,
-							'to' => 20,
-							'count' => 20
+					'range' => array(
+						'buckets' => array(
+							array(
+								'from' => 0,
+								'to' => 10,
+								'doc_count' => 15
+							),
+							array(
+								'from' => 10,
+								'to' => 20,
+								'doc_count' => 20
+							)
 						)
 					)
 				)
@@ -957,4 +1049,5 @@ class SearcherTest extends BaseTestCase
 		), $output);
 	}
 }
+
 ?>
