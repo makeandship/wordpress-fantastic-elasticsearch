@@ -166,9 +166,26 @@ class Indexer
 		global $blog_id;
 		$document = array('blog_id' => $blog_id);
 		$document = self::_build_field_values($post, $document);
+		$document = self::_build_dynamic_field_values($post, $document);
 		$document = self::_build_meta_values($post, $document);
 		$document = self::_build_tax_values($post, $document);
 		return Config::apply_filters('indexer_build_document', $document, $post);
+	}
+
+	/**
+	 * Add post meta values to elasticsearch object, only if they are present.
+	 *
+	 * @param WP_Post $post
+	 * @param Array $document to write to es
+	 * @return Array $document
+	 * @internal
+	 **/
+	static function _build_dynamic_field_values($post, $document)
+	{
+		$link = get_permalink( $post->ID );
+		$document['link'] = $link;
+
+		return $document;
 	}
 
 	/**
@@ -355,34 +372,49 @@ class Indexer
 		$notanalyzed = Config::option('not_analyzed');
 
 		foreach ($config_fields as $field) {
-			// set default
-			$props = array('type' => 'string');
-			// detect special field type
-			if (isset($numeric[$field])) {
-				$props['type'] = 'float';
-			} elseif (isset($notanalyzed[$field]) || $kind == 'taxonomy' || $field == 'post_type') {
-				$props['index'] = 'not_analyzed';
-			} elseif ($field == 'post_date') {
-				$props['type'] = 'date';
-				$props['format'] = 'date_time_no_millis';
-			} else {
-				$props['index'] = 'analyzed';
+			$base = $field;
+			$pos = strpos($field, '.');
+			if ($pos !== false) {
+				// e.g. urls.url_title
+				$base = substr($field, 0, $pos); // e.g. urls
+				$remainder = substr($field, $pos + 1, strlen($field) - $pos); // e.g. url_title
+				
+				$props = array_key_exists($base, $properties) ? $properties[$base] : array('type' => 'nested');
+				$nested_properties = array_key_exists('properties', $props) ? $props['properties'] : array();
+				self::_map_values($nested_properties, $type, [$remainder], $kind);
+				$props['properties'] = $nested_properties;
+			}
+			else {
+				// set default
+				$props = array('type' => 'string');
+				// detect special field type
+				if (isset($numeric[$field])) {
+					$props['type'] = 'float';
+				} elseif (isset($notanalyzed[$field]) || $kind == 'taxonomy' || $field == 'post_type') {
+					$props['index'] = 'not_analyzed';
+				} elseif ($field == 'post_date') {
+					$props['type'] = 'date';
+					$props['format'] = 'date_time_no_millis';
+				} else {
+					$props['index'] = 'analyzed';
+				}
+
+				if ($props['type'] == 'string' && $props['index'] == 'analyzed') {
+					// provides more accurate searches
+
+					$lang = Config::apply_filters('string_language', 'english');
+					$props = array(
+						'type' => 'multi_field',
+						'fields' => array(
+							$field => $props,
+							$lang => array_merge($props, array(
+								'analyzer' => $lang
+							))
+						)
+					);
+				}
 			}
 
-			if ($props['type'] == 'string' && $props['index'] == 'analyzed') {
-				// provides more accurate searches
-
-				$lang = Config::apply_filters('string_language', 'english');
-				$props = array(
-					'type' => 'multi_field',
-					'fields' => array(
-						$field => $props,
-						$lang => array_merge($props, array(
-							'analyzer' => $lang
-						))
-					)
-				);
-			}
 
 			// generic filter indexer_map_field| indexer_map_meta | indexer_map_taxonomy
 			$props = Config::apply_filters('indexer_map_' . $kind, $props, $field);
@@ -393,10 +425,10 @@ class Indexer
 				$tax_name_props = Config::apply_filters('indexer_map_taxonomy_name', $tax_name_props, $field);
 			}
 
-			$properties[$field] = $props;
+			$properties[$base] = $props;
 
 			if (isset($tax_name_props)) {
-				$properties[$field . '_name'] = $tax_name_props;
+				$properties[$base . '_name'] = $tax_name_props;
 			}
 		}
 	}
