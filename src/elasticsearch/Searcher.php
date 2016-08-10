@@ -34,13 +34,13 @@ class Searcher
 		}
 
 		// need to do rethink the signature of the search() method, arg list can't just keep growing
-		return self::_query($args, $pageIndex, $size, $sortByDate);
+		return self::_query($args, $pageIndex, $size, $sortByDate, $search);
 	}
 
 	/**
 	 * @internal
 	 **/
-	public static function _query($args, $pageIndex, $size, $sortByDate = false)
+	public static function _query($args, $pageIndex, $size, $sortByDate = false, $keyword = '')
 	{
 		$query = new \Elastica\Query($args);
 		$query->setFrom($pageIndex * $size);
@@ -65,7 +65,7 @@ class Searcher
 
 			$search = Config::apply_filters('searcher_search', $search, $query);
 
-			$results = $search->search($query);
+			$results = $search->search($query, $search, $keyword);
 
 			return self::_parseResults($results);
 		} catch (\Exception $ex) {
@@ -176,15 +176,15 @@ class Searcher
 			$args['filter']['bool'] = self::_filtersToBoolean($filters);
 		}
 
-		if (count($musts) > 0) {
-			$args['query']['bool']['must'] = $musts;
-		}
+		//if (count($musts) > 0) {
+		//	$args['query']['bool']['must'] = $musts;
+		//}
 
 		$blogfilter = array('term' => array('blog_id' => $blog_id));
 
-		$args['filter']['bool']['must'][] = $blogfilter;
+		//$args['filter']['bool']['must'][] = $blogfilter;
 
-		$args = Config::apply_filters('searcher_query_pre_facet_filter', $args);
+		//$args = Config::apply_filters('searcher_query_pre_facet_filter', $args);
 
 		if (in_array('post_type', $fields)) {
 			$args['aggs']['post_type']['terms'] = array(
@@ -196,7 +196,7 @@ class Searcher
 		// return facets
 		foreach (Config::facets() as $facet) {
 			$args['aggs'][$facet] = array(
-				'aggs' => array(
+				'aggregations' => array(
 					"facet" => array(
 						'terms' => array(
 							'field' => $facet,

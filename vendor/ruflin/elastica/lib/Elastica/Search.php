@@ -438,7 +438,7 @@ class Search
      *
      * @return \Elastica\ResultSet
      */
-    public function search($query = '', $options = null)
+    public function search($query = '', $options = null, $search = '')
     {
         $this->setOptionsAndQuery($options, $query);
 
@@ -454,7 +454,8 @@ class Search
         } else {
             $data = $query->toArray();
         }
-
+		
+		$params['q'] = $search;
         $response = $this->getClient()->request(
             $path,
             Request::GET,
