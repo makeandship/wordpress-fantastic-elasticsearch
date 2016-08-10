@@ -181,16 +181,61 @@ class Indexer
 	 **/
 	static function _build_meta_values($post, $document)
 	{
-		$keys = get_post_custom_keys($post->ID);
+		if( class_exists('acf') ) {
+			$config = Config::meta_fields();
 
-		if (is_array($keys)) {
-			$meta_fields = self::_build_meta_values_match_keys( $keys, Config::meta_fields());
+			$acf = get_fields($post->ID);
+			$filtered = self::_filter_acf_meta_values( null, $acf, $config);
+			$document = array_merge($document, $filtered);			
+		}
+		else {
+			$keys = get_post_custom_keys($post->ID);
 
-			foreach ($meta_fields as $field) {
-				$val = get_post_meta($post->ID, $field, true);
+			if (is_array($keys)) {
+				$meta_fields = self::_build_meta_values_match_keys( $keys, Config::meta_fields());
 
-				if (isset($val)) {
-					$document[$field] = $val;
+				foreach ($meta_fields as $field) {
+					$val = get_post_meta($post->ID, $field, true);
+
+					if (isset($val)) {
+						$document[$field] = $val;
+					}
+				}
+			}
+		}
+
+		return $document;
+	}
+
+	private static function _filter_acf_meta_values( $prefix, $acf, $configs) {
+		$document = array();
+		
+		foreach($acf as $acf_key => $acf_value) {
+			$name = empty($prefix) ? $acf_key : $prefix.".".$acf_key;
+
+			if (is_array( $acf_value )) {
+				if (Util::is_associative($acf_value)) {
+					$filtered = self::_filter_acf_meta_values( $name, $acf_value, $configs);
+					if (!empty($filtered)) {
+						$document[$acf_key] = $filtered;
+					}
+				}
+				else {
+					$matches = array();
+					foreach($acf_value as $acf_value_item) {
+						$filtered = self::_filter_acf_meta_values( $name, $acf_value_item, $configs);
+						if (!empty($filtered)) {
+							$matches[] = $filtered;
+						}
+					}
+					if (!empty($matches)) {
+						$document[$acf_key] = $matches;
+					}
+				} 
+			}
+			else {
+				if (in_array($name, $configs) && !empty($acf_value)) {
+					$document[$acf_key] = $acf_value;
 				}
 			}
 		}
