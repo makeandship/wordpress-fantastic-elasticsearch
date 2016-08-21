@@ -239,8 +239,11 @@ class Indexer
 				}
 				else {
 					$matches = array();
-					foreach($acf_value as $acf_value_item) {
-						$filtered = self::_filter_acf_meta_values( $name, $acf_value_item, $configs);
+					foreach($acf_value as $index => $acf_value_item) {
+						// wrap text field in array to match method signature
+						$item = is_array($acf_value_item) ? $acf_value_item : [$acf_value_item]; 
+						$filtered = self::_filter_acf_meta_values( $name, $item, $configs);
+						
 						if (!empty($filtered)) {
 							$matches[] = $filtered;
 						}
