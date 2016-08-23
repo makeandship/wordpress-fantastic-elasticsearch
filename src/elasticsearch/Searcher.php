@@ -24,6 +24,11 @@ class Searcher
 	public static function search($search = '', $pageIndex = 0, $size = 10, $facets = array(), $sortByDate = false)
 	{
 		$args = self::_buildQuery($search, $facets);
+		$query = self::_generate_query( $search, $facets );
+
+		error_log(print_r($args, true));
+		error_log('---');
+		error_log(print_r($query, true));
 
 		if (empty($args) || (empty($args['query']) && empty($args['aggs']))) {
 			return array(
@@ -34,7 +39,184 @@ class Searcher
 		}
 
 		// need to do rethink the signature of the search() method, arg list can't just keep growing
-		return self::_query($args, $pageIndex, $size, $sortByDate);
+		return self::_query($query, $pageIndex, $size, $sortByDate);
+	}
+
+	public static function _generate_query($search, $facets) {
+		$query = array();
+
+		// query config
+		$config = self::_get_config();
+
+		// free text search
+		// - no text 
+		// - normal text 
+		// - fuzzy
+		// - against fields
+		$query_freetext = self::_generate_query_freetext( $config, $search, $facets );
+
+		// facets (taxonomies)
+		$query_facets = self::_generate_query_facets( $config, $search, $facets );
+
+		// ranges
+		$query_ranges = self::_generate_query_ranges( $config, $search, $facets );
+
+		// scoring
+		$query_scores = self::_generate_query_scores( $config, $search, $facets );
+
+		// taxonomy counts
+		$query_aggregations = self::_generate_query_aggregations( $config, $search, $facets );
+
+		// compose into a valid es query
+		$query = self::_generate_complete_query(
+			$config,
+			$query_freetext,
+			$query_facets,
+			$query_ranges,
+			$query_scores,
+			$query_aggregations
+			);
+
+		return $query;
+	}
+
+	public static function _get_config() {
+		return array(
+			'taxonomies' => Config::taxonomies(),
+			'facets' => Config::facets(),
+			'numeric' => Config::option('numeric'),
+			'exclude' => Config::apply_filters('searcher_query_exclude_fields', array('post_date')),
+			'fields' => Config::fields(),
+			'meta_fields' => Config::meta_fields()
+		);
+	}
+
+	public static function _generate_query_freetext( $config, $search, $facets ) {
+		$query = array(
+			'query' => array()
+		);
+
+		if (isset($search) && $search) {
+			
+			if (!array_key_exists('match', $query['query'])) {
+				$query['query']['match'] = array();
+			}
+
+			// free text search
+			$query['query']['match']['_all'] = $search;
+
+			
+			// - no text 
+			// - normal text 
+			// - fuzzy
+			// - against fields
+		}
+		else {
+			// no text search
+			if (!array_key_exists('match_all', $query['query'])) {
+				$query['query']['match_all'] = array();
+			}
+		}
+
+		return $query;
+	}
+
+	public static function _generate_query_facets( $config, $search, $facets ) {
+		$query = array();
+
+		if (isset($facets) && count($facets) > 0) {
+			$query = array(
+				'filter' => array()
+			);
+
+			foreach($facets as $taxonomy => $filters) {
+				foreach ($filters as $operation => $filter) {
+					if (is_string($operation)) {
+						$query['filter']['bool'] = array();
+
+						$bool_operator = $operation === 'or' ? 'should' : 'must';
+						if (!array_key_exists($bool_operator, $query['filter']['bool'])) {
+							$query['filter']['bool'][$bool_operator] = array();
+						}
+
+						if (is_array($filter)) {
+							foreach ($filter as $value) {
+								$query['filter']['bool'][$bool_operator][] = 
+									array(
+										'term' => array( 
+											$taxonomy => $value
+										)
+									);
+							}
+						}
+					}
+				}
+			}
+		}
+
+		return $query;
+	}
+
+	public static function _generate_query_ranges( $config, $search, $facets ) {
+
+	}
+
+	public static function _generate_query_scores( $config, $search, $facets ) {
+
+	}
+
+	public static function _generate_query_aggregations( $config, $search, $facets ) {
+		$aggs = array(
+			'aggs' => array()
+			);
+
+		$config_facets = $config['facets'];
+
+		foreach ($config_facets as $facet) {
+			$aggs['aggs'][$facet] = array(
+				'terms' => array(
+					'field' => $facet,
+					'size' => Config::apply_filters('searcher_query_facet_size', 100, $facet)  // see https://github.com/elasticsearch/elasticsearch/issues/1832
+				)
+			);
+		}
+
+		return $aggs;
+	}
+
+	public static function _generate_complete_query( 
+		$config,
+		$query_freetext,
+		$query_facets,
+		$query_ranges,
+		$query_scores,
+		$query_aggregations ) {
+
+		if (is_array($query_freetext) && !empty($query_freetext) && 
+			is_array($query_facets) && !empty($query_facets) ) {
+			
+			$query = array(
+				'query' => array( 
+					'filtered' => array_merge($query_freetext, $query_facets)
+				)
+			);
+
+			$query = array_merge(
+				$query, 
+				$query_aggregations
+			);
+			
+		}
+		else {
+			$query = array_merge(
+				array(),
+				$query_freetext,
+				$query_facets,
+				$query_aggregations
+			);
+		}
+
+		return $query;
 	}
 
 	/**
@@ -90,8 +272,8 @@ class Searcher
 		);
 
 		foreach ($response->getAggregations() as $name => $agg) {
-			if (isset($agg['facet']['buckets'])) {
-				foreach ($agg['facet']['buckets'] as $bucket) {
+			if (isset($agg['buckets'])) {
+				foreach ($agg['buckets'] as $bucket) {
 					$val['facets'][$name][$bucket['key']] = $bucket['doc_count'];
 				}
 			}
