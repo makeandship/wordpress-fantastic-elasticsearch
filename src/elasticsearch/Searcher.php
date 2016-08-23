@@ -181,15 +181,15 @@ class Searcher
 			$args['filter']['bool'] = self::_filtersToBoolean($filters);
 		}
 
-		//if (count($musts) > 0) {
-		//	$args['query']['bool']['must'] = $musts;
-		//}
+		if (count($musts) > 0) {
+			$args['query']['bool']['must'] = $musts;
+		}
 
 		$blogfilter = array('term' => array('blog_id' => $blog_id));
 
-		//$args['filter']['bool']['must'][] = $blogfilter;
+		$args['filter']['bool']['must'][] = $blogfilter;
 
-		//$args = Config::apply_filters('searcher_query_pre_facet_filter', $args);
+		$args = Config::apply_filters('searcher_query_pre_facet_filter', $args);
 
 		if (in_array('post_type', $fields)) {
 			$args['aggs']['post_type']['terms'] = array(
