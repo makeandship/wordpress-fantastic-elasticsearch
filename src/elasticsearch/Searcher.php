@@ -40,12 +40,12 @@ class Searcher
 	/**
 	 * @internal
 	 **/
-	public static function _query($args, $pageIndex, $size, $sortByDate = false, $keyword = '')
+	public static function _query($args, $pageIndex, $size, $sortByDate = false)
 	{
 		$query = new \Elastica\Query($args);
 		$query->setFrom($pageIndex * $size);
 		$query->setSize($size);
-		$query->setFields(array('id'));
+		//$query->setFields(array('id'));
 
 		$query = Config::apply_filters('searcher_query', $query);
 
@@ -65,7 +65,7 @@ class Searcher
 
 			$search = Config::apply_filters('searcher_search', $search, $query);
 
-			$results = $search->search($query, $search, $keyword);
+			$results = $search->search($query);
 
 			return self::_parseResults($results);
 		} catch (\Exception $ex) {
@@ -85,6 +85,7 @@ class Searcher
 		$val = array(
 			'total' => $response->getTotalHits(),
 			'facets' => array(),
+			'results' => array(),
 			'ids' => array()
 		);
 
@@ -106,7 +107,11 @@ class Searcher
 		}
 
 		foreach ($response->getResults() as $result) {
-			$val['ids'][] = $result->getId();
+			$source = $result->getSource();
+			$source['id'] = $result->getId();
+
+			$val['results'][] = $source;
+			$val['ids'][] = $source['id'];
 		}
 
 		return Config::apply_filters('searcher_results', $val, $response);
