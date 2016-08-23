@@ -150,25 +150,54 @@ class Searcher
 		$exclude = Config::apply_filters('searcher_query_exclude_fields', array('post_date'));
 
 		$fields = Config::fields();
+		$meta_fields = Config::meta_fields();
 
-		self::_searchField($fields, 'field', $exclude, $search, $facets, $musts, $filters, $scored, $numeric);
-		self::_searchField(Config::meta_fields(), 'meta', $exclude, $search, $facets, $musts, $filters, $scored, $numeric);
+		$search_fields = array_merge($fields, $meta_fields);
+		self::_searchField(
+			$search_fields, 
+			'field', 
+			$exclude, 
+			$search, 
+			$facets, 
+			$musts, 
+			$filters, 
+			$scored, 
+			$numeric);
 
-		if (count($scored) > 0 && $search) {
-			$qs = array(
-				'fields' => $scored,
-				'query' => $search
-			);
+		//self::_searchField($fields, 'field', $exclude, $search, $facets, $musts, $filters, $scored, $numeric);
+		//self::_searchField(Config::meta_fields(), 'meta', $exclude, $search, $facets, $musts, $filters, $scored, $numeric);
 
-			$fuzzy = Config::option('fuzzy');
+		if ($search) {
+			if (count($scored) > 0) {
+				$matches = array();
+				if(!preg_match('/.*?[AND|OR|:|NOT].*?/', $search, $matches)) {
+					// no match
+					$qs = array(
+						'fields' => $scored,
+						'query' => $search
+					);
 
-			if ($fuzzy && strpos($search, "~") > -1) {
-				$qs['fuzzy_min_sim'] = $fuzzy;
+					$fuzzy = Config::option('fuzzy');
+
+					if ($fuzzy && strpos($search, "~") > -1) {
+						$qs['fuzzy_min_sim'] = $fuzzy;
+					}
+
+					$qs = Config::apply_filters('searcher_query_string', $qs);
+
+					$musts[] = array('query_string' => $qs);
+				}
+				else {
+
+				}
 			}
+			else {
 
-			$qs = Config::apply_filters('searcher_query_string', $qs);
+			}
+		}
+		else {
+			// apply a match all
 
-			$musts[] = array('query_string' => $qs);
 		}
 
 		if (in_array('post_type', $fields)) {
@@ -277,16 +306,38 @@ class Searcher
 
 	public static function _searchField($fields, $type, $exclude, $search, $facets, &$musts, &$filters, &$scored, $numeric)
 	{
+		$is_scored = false;
 		foreach ($fields as $field) {
 			if (in_array($field, $exclude)) {
 				continue;
 			}
 
-			if ($search) {
+			$score = Config::score($type, $field);
+			if ($score) {
+				$is_scored = true;
+				break;
+			}
+		}
+
+		if ($search && !$is_scored) { // phrase search when there is no score
+			
+			// make nested objects
+			$nested_fields = Searcher::apply_hierarchy( array(), $fields );
+
+			// generate nested field query
+			
+		} 
+		else {
+
+			foreach ($fields as $field) {
+				if (in_array($field, $exclude)) {
+					continue;
+				}
+
 				$score = Config::score($type, $field);
 				$notanalyzed = Config::option('not_analyzed');
 
-				if ($score > 0) {
+				if ($search && $score > 0) {
 					if (strpos($search, "~") > -1 || isset($notanalyzed[$field])) {
 						// TODO: fuzzy doesn't work with english analyzer
 						$scored[] = "$field^$score";
@@ -297,32 +348,36 @@ class Searcher
 						);
 					}
 				}
-			}
 
-			if (isset($numeric[$field]) && $numeric[$field]) {
-				$ranges = Config::ranges($field);
+				if (isset($numeric[$field]) && $numeric[$field]) {
+					$ranges = Config::ranges($field);
 
-				if (count($ranges) > 0) {
-					$transformed = array();
+					if (count($ranges) > 0) {
+						$transformed = array();
 
-					foreach ($ranges as $key => $range) {
-						$transformed[$key] = array();
+						foreach ($ranges as $key => $range) {
+							$transformed[$key] = array();
 
-						if (isset($range['to'])) {
-							$transformed[$key]['lt'] = $range['to'];
+							if (isset($range['to'])) {
+								$transformed[$key]['lt'] = $range['to'];
+							}
+
+							if (isset($range['from'])) {
+								$transformed[$key]['gte'] = $range['from'];
+							}
 						}
 
-						if (isset($range['from'])) {
-							$transformed[$key]['gte'] = $range['from'];
-						}
+						self::_filterBySelectedFacets($field, $facets, 'range', $musts, $filters, $transformed);
 					}
-
-					self::_filterBySelectedFacets($field, $facets, 'range', $musts, $filters, $transformed);
+				} else if ($type == 'custom') {
+					self::_filterBySelectedFacets($field, $facets, 'term', $musts, $filters);
 				}
-			} else if ($type == 'custom') {
-				self::_filterBySelectedFacets($field, $facets, 'term', $musts, $filters);
 			}
 		}
+	}
+
+	public static function apply_hierarchy( $hierarchy, $fields ) {
+		return Util::apply_hierarchy( $hierarchy, $fields );
 	}
 
 	public static function _filtersToBoolean($filters)
