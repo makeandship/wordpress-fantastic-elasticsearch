@@ -13,5 +13,5 @@ class Search extends AbstractArchive
 	}
 }
 
-new Search();
+//new Search();
 ?>
