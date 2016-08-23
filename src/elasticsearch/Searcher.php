@@ -34,7 +34,7 @@ class Searcher
 		}
 
 		// need to do rethink the signature of the search() method, arg list can't just keep growing
-		return self::_query($args, $pageIndex, $size, $sortByDate, $search);
+		return self::_query($args, $pageIndex, $size, $sortByDate);
 	}
 
 	/**
@@ -123,13 +123,24 @@ class Searcher
 	public static function _buildQuery($search, $facets = array())
 	{
 		global $blog_id;
-
 		$search = str_ireplace(array(' and ', ' or '), array(' AND ', ' OR '), $search);
 
 		$fields = array();
 		$musts = array();
 		$filters = array();
 		$scored = array();
+
+		// free text search
+		// - no text 
+		// - normal text 
+		// - fuzzy
+		// - against fields
+
+		// taxonomies
+
+		// ranges
+
+		// scoring
 
 		foreach (Config::taxonomies() as $tax) {
 			if ($search) {
@@ -223,7 +234,7 @@ class Searcher
 		if (in_array('post_type', $fields)) {
 			$args['aggs']['post_type']['terms'] = array(
 				'field' => 'post_type',
-				'size' => Config::apply_filters('searcher_query_facet_size', 100)  // see https://github.com/elasticsearch/elasticsearch/issues/1832
+				'size' => Config::apply_filters('searcher_query_facet_size', 100, 'post_type')  // see https://github.com/elasticsearch/elasticsearch/issues/1832
 			);
 		}
 
@@ -234,7 +245,7 @@ class Searcher
 					"facet" => array(
 						'terms' => array(
 							'field' => $facet,
-							'size' => Config::apply_filters('searcher_query_facet_size', 100)  // see https://github.com/elasticsearch/elasticsearch/issues/1832
+							'size' => Config::apply_filters('searcher_query_facet_size', 100, $facet)  // see https://github.com/elasticsearch/elasticsearch/issues/1832
 						)
 					)
 				)
@@ -319,13 +330,18 @@ class Searcher
 			}
 		}
 
-		if ($search && !$is_scored) { // phrase search when there is no score
+		if (!$is_scored) { // phrase search when there is no score
 			
-			// make nested objects
-			$nested_fields = Searcher::apply_hierarchy( array(), $fields );
+			if ($search) {
+				// make nested objects
+				$nested_fields = Searcher::apply_hierarchy( array(), $fields );
 
-			// generate nested field query
-			
+				// generate nested field query
+				$search_query = Searcher::_build_nested_search( array(), $nested_fields, $search);
+			}
+			else {
+				// match all
+			}
 		} 
 		else {
 
@@ -374,6 +390,32 @@ class Searcher
 				}
 			}
 		}
+	}
+
+	public static function _build_nested_search( $container, $nested_fields, $search ) {
+
+		foreach($nested_fields as $key => $value) {
+			if (is_array($value)) {
+				// ignore nested values initially
+			}
+			else {
+				// add standard match
+				if (!array_key_exists('multi_match', $container)) {
+					$container['multi_match'] = array();
+				}
+				if (!array_key_exists('fields', $container['multi_match'])) {
+					$container['multi_match']['fields'] = array();
+				} 
+				$container['multi_match']['fields'][] = $value;
+
+				// TODO - move search up a level
+				if (!array_key_exists('query', $container['multi_match'])) {
+					$container['multi_query']['query'] = $search;
+				}
+			}
+		}
+
+		return $container;
 	}
 
 	public static function apply_hierarchy( $hierarchy, $fields ) {
