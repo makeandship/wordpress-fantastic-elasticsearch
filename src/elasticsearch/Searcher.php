@@ -87,7 +87,8 @@ class Searcher
 			'numeric' => Config::option('numeric'),
 			'exclude' => Config::apply_filters('searcher_query_exclude_fields', array('post_date')),
 			'fields' => Config::fields(),
-			'meta_fields' => Config::meta_fields()
+			'meta_fields' => Config::meta_fields(),
+			'fuzzy' => Config::option('fuzzy')
 		);
 	}
 
@@ -108,7 +109,10 @@ class Searcher
 			$query['query']['multi_match']['query'] = $search;
 			
 			// - fuzzy
-			
+			$fuzzy = $config['fuzzy'];
+			if ($fuzzy) {
+				$query['query']['multi_match']['fuzziness'] = $fuzzy;
+			}
 		}
 		else {
 			// no text search
