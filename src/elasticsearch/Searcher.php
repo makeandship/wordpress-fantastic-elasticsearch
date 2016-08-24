@@ -97,27 +97,15 @@ class Searcher
 		);
 
 		if (isset($search) && $search) {
-			$scores = self::_get_field_scores( $config );
-
-			if (isset($scores['scored']) && !empty($scores['scored'])) {
-				// - field weightings
-				if (!array_key_exists('match', $query['query'])) {
-					$query['query']['match'] = array();
-				}
-
-				// free text search
-				$query['query']['match']['_all'] = $search;
+			
+			// - normal text
+			if (!array_key_exists('match', $query['query'])) {
+				$query['query']['match'] = array();
 			}
-			else {
-				// - normal text
-				if (!array_key_exists('match', $query['query'])) {
-					$query['query']['match'] = array();
-				}
 
-				// free text search
-				$query['query']['match']['_all'] = $search;
-			}
- 
+			// free text search
+			$query['query']['match']['_all'] = $search;
+			
 			// - fuzzy
 			
 		}
@@ -172,7 +160,26 @@ class Searcher
 	}
 
 	public static function _generate_query_scores( $config, $search, $facets ) {
+		$query = array();
 
+		$scores = self::_get_field_scores( $config );
+
+		if ( array_key_exists( 'scored' , $scores) && count($scores['scored']) > 0) {
+			$query['function_score'] = array(
+				'functions' => array()
+			);
+
+			foreach($scores['scored'] as $field => $score) {
+				$query['function_score']['functions'] = array(
+					'field_value_factor' => array(
+						'field' => $field,
+						'factor' => $score
+					)
+				);
+			}
+		}
+
+		return $query;
 	}
 
 	public static function _generate_query_aggregations( $config, $search, $facets ) {
