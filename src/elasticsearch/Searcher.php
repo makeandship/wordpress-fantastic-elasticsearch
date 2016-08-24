@@ -97,19 +97,29 @@ class Searcher
 		);
 
 		if (isset($search) && $search) {
-			
-			if (!array_key_exists('match', $query['query'])) {
-				$query['query']['match'] = array();
+			$scores = self::_get_field_scores( $config );
+
+			if (isset($scores['scored']) && !empty($scores['scored'])) {
+				// - field weightings
+				if (!array_key_exists('match', $query['query'])) {
+					$query['query']['match'] = array();
+				}
+
+				// free text search
+				$query['query']['match']['_all'] = $search;
 			}
+			else {
+				// - normal text
+				if (!array_key_exists('match', $query['query'])) {
+					$query['query']['match'] = array();
+				}
 
-			// free text search
-			$query['query']['match']['_all'] = $search;
-
-			
-			// - no text 
-			// - normal text 
+				// free text search
+				$query['query']['match']['_all'] = $search;
+			}
+ 
 			// - fuzzy
-			// - against fields
+			
 		}
 		else {
 			// no text search
@@ -217,6 +227,47 @@ class Searcher
 		}
 
 		return $query;
+	}
+
+	public static function _get_field_scores( $config ) {
+		$scores = array(
+			'scored' => array(),
+			'unscored' => array()
+		);
+
+		// 
+		foreach($config['fields'] as $field) {
+			$score = Config::score( 'field', $field);
+			
+			if ($score) {
+				$scores['scored'][$field] = $score;
+			}
+			else {
+				$scores['unscored'][] = $field;
+			}
+		}
+		foreach($config['meta_fields'] as $meta_field) {
+			$score = Config::score( 'meta', $field );
+			
+			if ($score) {
+				$scores['scored'][$field] = $score;
+			}
+			else {
+				$scores['unscored'][] = $field;
+			}
+		}
+		foreach($config['taxonomies'] as $taxonomy) {
+			$score = Config::score( 'tax', $field);
+			
+			if ($score) {
+				$scores['scored'][$field.'_name'] = $score;
+			}
+			else {
+				$scores['unscored'][] = $field.'_name';
+			}
+		}
+
+		return $scores;
 	}
 
 	/**
