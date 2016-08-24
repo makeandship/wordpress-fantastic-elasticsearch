@@ -185,6 +185,8 @@ class Searcher
 	}
 
 	public static function _generate_query_aggregations( $config, $search, $facets ) {
+		global $blog_id;
+
 		$aggs = array(
 			'aggs' => array()
 			);
@@ -193,11 +195,27 @@ class Searcher
 
 		foreach ($config_facets as $facet) {
 			$aggs['aggs'][$facet] = array(
-				'terms' => array(
-					'field' => $facet,
-					'size' => Config::apply_filters('searcher_query_facet_size', 100, $facet)  // see https://github.com/elasticsearch/elasticsearch/issues/1832
+				'aggregations' => array(
+					'facet' => array(
+						'terms' => array(
+							'field' => $facet,
+							'size' => Config::apply_filters('searcher_query_facet_size', 100, $facet)  // see https://github.com/elasticsearch/elasticsearch/issues/1832
+						)
+					)
+				),
+				'filter' => array(
+					'bool' => array(
+						'must' => [
+							array(
+								'term' => array(
+									'blog_id'=> $blog_id
+								)
+							)
+						]
+					)
 				)
 			);
+			
 		}
 
 		return $aggs;
@@ -340,8 +358,8 @@ class Searcher
 		);
 
 		foreach ($response->getAggregations() as $name => $agg) {
-			if (isset($agg['buckets'])) {
-				foreach ($agg['buckets'] as $bucket) {
+			if (isset($agg['facet']['buckets'])) {
+				foreach ($agg['facet']['buckets'] as $bucket) {
 					$val['facets'][$name][$bucket['key']] = $bucket['doc_count'];
 				}
 			}
