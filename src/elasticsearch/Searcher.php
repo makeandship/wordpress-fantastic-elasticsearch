@@ -99,12 +99,13 @@ class Searcher
 		if (isset($search) && $search) {
 			
 			// - normal text
-			if (!array_key_exists('match', $query['query'])) {
-				$query['query']['match'] = array();
+			if (!array_key_exists('multi_match', $query['query'])) {
+				$query['query']['multi_match'] = array();
 			}
 
 			// free text search
-			$query['query']['match']['_all'] = $search;
+			$query['query']['multi_match']['fields'] = ["_all"];
+			$query['query']['multi_match']['query'] = $search;
 			
 			// - fuzzy
 			
@@ -165,17 +166,14 @@ class Searcher
 		$scores = self::_get_field_scores( $config );
 
 		if ( array_key_exists( 'scored' , $scores) && count($scores['scored']) > 0) {
-			$query['function_score'] = array(
-				'functions' => array()
+			$query['query'] = array(
+				'multi_match' => array(
+					'fields' => array()
+				)
 			);
 
 			foreach($scores['scored'] as $field => $score) {
-				$query['function_score']['functions'] = array(
-					'field_value_factor' => array(
-						'field' => $field,
-						'factor' => $score
-					)
-				);
+				$query['query']['multi_match']['fields'][] = $field.'^'.$score;
 			}
 		}
 
@@ -208,6 +206,14 @@ class Searcher
 		$query_ranges,
 		$query_scores,
 		$query_aggregations ) {
+
+		if (is_array($query_scores) && !empty($query_scores)) {
+			// query scores merges with a multi-match element when 
+			// the user has specified a search query 
+			if (!array_key_exists('match_all', $query_freetext['query'])) {
+				$query_freetext = array_merge_recursive($query_freetext, $query_scores);
+			}
+		}
 
 		if (is_array($query_freetext) && !empty($query_freetext) && 
 			is_array($query_facets) && !empty($query_facets) ) {
