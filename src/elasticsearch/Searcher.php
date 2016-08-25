@@ -6,6 +6,7 @@ namespace elasticsearch;
  *
  * @license http://opensource.org/licenses/MIT
  * @author Paris Holley <mail@parisholley.com>
+ * @author Mark Thomsit <mark@makeandship.com>
  * @version 4.0.1
  **/
 class Searcher
@@ -21,25 +22,15 @@ class Searcher
 	 *
 	 * @return array The results of the search
 	 **/
-	public static function search($search = '', $pageIndex = 0, $size = 10, $facets = array(), $sortByDate = false)
+	public static function search($search = '', $page_index = 0, $size = 10, $facets = array())
 	{
-		$args = self::_buildQuery($search, $facets);
 		$query = self::_generate_query( $search, $facets );
+		error_log( json_encode( $query ) );
 
-		error_log(print_r($args, true));
-		error_log('---');
-		error_log(print_r($query, true));
-
-		if (empty($args) || (empty($args['query']) && empty($args['aggs']))) {
-			return array(
-				'total' => 0,
-				'ids' => array(),
-				'facets' => array()
-			);
-		}
+		$sort_by_date = (!isset($search) || empty($empty)) ? true : false;
 
 		// need to do rethink the signature of the search() method, arg list can't just keep growing
-		return self::_query($query, $pageIndex, $size, $sortByDate);
+		return self::_execute($query, $page_index, $size, $sort_by_date);
 	}
 
 	public static function _generate_query($search, $facets) {
@@ -80,6 +71,18 @@ class Searcher
 		return $query;
 	}
 
+	/**
+	 * Get wrapped plugin configuration to support query building
+	 *
+	 * @return array
+	 * - taxonomies
+	 * - facets
+	 * - numeric
+	 * - exclude
+	 * - fields
+	 * - meta_fields
+	 * - fuzzy
+	 */
 	public static function _get_config() {
 		return array(
 			'taxonomies' => Config::taxonomies(),
@@ -92,6 +95,20 @@ class Searcher
 		);
 	}
 
+	/**
+	 * Generate query structures for a free-text search 
+	 * 
+	 * Includes:
+	 * - free text search
+	 * - fuzzy search
+	 * - no free text 
+	 *
+	 * @param $config - plugin configuration
+	 * @param $search - free-text query 
+	 * @param $config - facets - taxonomy query values
+	 *
+	 * @return $query - free-text structures of a query - query['match_all'], query['multi_match']
+	 */
 	public static function _generate_query_freetext( $config, $search, $facets ) {
 		$query = array(
 			'query' => array()
@@ -124,6 +141,17 @@ class Searcher
 		return $query;
 	}
 
+	/**
+	 * Generate filter structures based on taxonomy queries
+	 * 
+	 * Uses boolean filters - must (and) and should (or)
+	 *
+	 * @param $config - plugin configuration
+	 * @param $search - free-text query 
+	 * @param $config - facets - taxonomy query values
+	 *
+	 * @return $query - filter structures for query filter['bool']
+	 */
 	public static function _generate_query_facets( $config, $search, $facets ) {
 		$query = array();
 
@@ -160,10 +188,30 @@ class Searcher
 		return $query;
 	}
 
+	/**
+	 * Generate filter structures based on taxonomy queries
+	 * 
+	 * @param $config - plugin configuration
+	 * @param $search - free-text query 
+	 * @param $config - facets - taxonomy query values
+	 *
+	 * @todo consider adding back in range queries with adjusted plugin UI
+	 */
 	public static function _generate_query_ranges( $config, $search, $facets ) {
-
+		// ranges need re-think in implementation
 	}
 
+	/**
+	 * Generate fields and scorings based on plugin config.  
+	 * 
+	 * Overlays fields with scores into query blocks
+	 *
+	 * @param $config - plugin configuration
+	 * @param $search - free-text query 
+	 * @param $config - facets - taxonomy query values
+	 *
+	 * @return $query - filter structures for query multi_match['fields']
+	 */
 	public static function _generate_query_scores( $config, $search, $facets ) {
 		$query = array();
 
@@ -184,6 +232,18 @@ class Searcher
 		return $query;
 	}
 
+	/**
+	 * Generate aggregations based on selected taxonomie
+	 * 
+	 * Uses aggs to count against taxonomies.  Use filters to support sizes 
+	 * if you need complete counts e.g. to return all terms
+	 *
+	 * @param $config - plugin configuration
+	 * @param $search - free-text query 
+	 * @param $config - facets - taxonomy query values
+	 *
+	 * @return $query - filter structures for query filter['bool']
+	 */
 	public static function _generate_query_aggregations( $config, $search, $facets ) {
 		global $blog_id;
 
@@ -221,6 +281,19 @@ class Searcher
 		return $aggs;
 	}
 
+	/**
+	 * Compose individual sections of a query into a single valid one 
+	 * for submission to elastic search
+	 * 
+	 * @param $config - plugin configuration
+	 * @param $query_freetext - free-text query 
+	 * @param $query_facets - facets
+	 * @param $query_ranges - range aggregations
+	 * @param $query_scores - individual field scorings
+	 * @param $query_aggregations - aggregations
+	 *
+	 * @return $query - a complete query
+	 */
 	public static function _generate_complete_query( 
 		$config,
 		$query_freetext,
@@ -308,47 +381,55 @@ class Searcher
 	/**
 	 * @internal
 	 **/
-	public static function _query($args, $pageIndex, $size, $sortByDate = false)
-	{
-		$query = new \Elastica\Query($args);
-		$query->setFrom($pageIndex * $size);
-		$query->setSize($size);
-		//$query->setFields(array('id'));
+	public static function _execute($args, $page_index, $size, $sort_by_date = false) {
+		// simple validation of the query - return empty result if invalid
+		if (empty($args) || (empty($args['query']) && empty($args['aggs']))) {
+			return self::_empty_result();
+		}
 
+		// wrap query array in an elastica query
+		$query = new \Elastica\Query($args);
+		// enhance elastica query - pagination and sort
+		$query->setFrom($page_index * $size);
+		$query->setSize($size);
+		if (!$query->hasParam('sort')) {
+			if ($sort_by_date) {
+				$query->addSort(array('post_date' => 'desc'));
+			} else {
+				$query->addSort('_score');
+			}
+		}
+
+		// dev override
 		$query = Config::apply_filters('searcher_query', $query);
 
 		try {
+			// elastica objects for querying
 			$index = Indexer::_index(false);
-
 			$search = new \Elastica\Search($index->getClient());
 			$search->addIndex($index);
 
-			if (!$query->hasParam('sort')) {
-				if ($sortByDate) {
-					$query->addSort(array('post_date' => 'desc'));
-				} else {
-					$query->addSort('_score');
-				}
-			}
-
 			$search = Config::apply_filters('searcher_search', $search, $query);
 
+			// search and transform results
 			$results = $search->search($query);
+			$transformed = self::_parse_results($results);
 
-			return self::_parseResults($results);
-		} catch (\Exception $ex) {
+			return $transformed;
+		} 
+		catch (\Exception $ex) {
 			error_log($ex);
 
 			Config::do_action('searcher_exception', $ex);
 
-			return null;
+			return self::_empty_result();
 		}
 	}
 
 	/**
 	 * @internal
 	 **/
-	public static function _parseResults($response)
+	public static function _parse_results($response)
 	{
 		$val = array(
 			'total' => $response->getTotalHits(),
@@ -385,372 +466,13 @@ class Searcher
 		return Config::apply_filters('searcher_results', $val, $response);
 	}
 
-	/**
-	 * @internal
-	 **/
-	public static function _buildQuery($search, $facets = array())
-	{
-		global $blog_id;
-		$search = str_ireplace(array(' and ', ' or '), array(' AND ', ' OR '), $search);
-
-		$fields = array();
-		$musts = array();
-		$filters = array();
-		$scored = array();
-
-		// free text search
-		// - no text 
-		// - normal text 
-		// - fuzzy
-		// - against fields
-
-		// taxonomies
-
-		// ranges
-
-		// scoring
-
-		foreach (Config::taxonomies() as $tax) {
-			if ($search) {
-				$score = Config::score('tax', $tax);
-
-				if ($score > 0) {
-					$scored[] = "{$tax}_name^$score";
-				}
-			}
-
-			self::_filterBySelectedFacets($tax, $facets, 'term', $musts, $filters);
-		}
-
-		$args = array();
-
-		$numeric = Config::option('numeric');
-
-		$exclude = Config::apply_filters('searcher_query_exclude_fields', array('post_date'));
-
-		$fields = Config::fields();
-		$meta_fields = Config::meta_fields();
-
-		$search_fields = array_merge($fields, $meta_fields);
-		self::_searchField(
-			$search_fields, 
-			'field', 
-			$exclude, 
-			$search, 
-			$facets, 
-			$musts, 
-			$filters, 
-			$scored, 
-			$numeric);
-
-		//self::_searchField($fields, 'field', $exclude, $search, $facets, $musts, $filters, $scored, $numeric);
-		//self::_searchField(Config::meta_fields(), 'meta', $exclude, $search, $facets, $musts, $filters, $scored, $numeric);
-
-		if ($search) {
-			if (count($scored) > 0) {
-				$matches = array();
-				if(!preg_match('/.*?[AND|OR|:|NOT].*?/', $search, $matches)) {
-					// no match
-					$qs = array(
-						'fields' => $scored,
-						'query' => $search
-					);
-
-					$fuzzy = Config::option('fuzzy');
-
-					if ($fuzzy && strpos($search, "~") > -1) {
-						$qs['fuzzy_min_sim'] = $fuzzy;
-					}
-
-					$qs = Config::apply_filters('searcher_query_string', $qs);
-
-					$musts[] = array('query_string' => $qs);
-				}
-				else {
-
-				}
-			}
-			else {
-
-			}
-		}
-		else {
-			// apply a match all
-
-		}
-
-		if (in_array('post_type', $fields)) {
-			self::_filterBySelectedFacets('post_type', $facets, 'term', $musts, $filters);
-		}
-
-		self::_searchField(Config::customFacets(), 'custom', $exclude, $search, $facets, $musts, $filters, $scored, $numeric);
-
-		if (count($filters) > 0) {
-			$args['filter']['bool'] = self::_filtersToBoolean($filters);
-		}
-
-		if (count($musts) > 0) {
-			$args['query']['bool']['must'] = $musts;
-		}
-
-		$blogfilter = array('term' => array('blog_id' => $blog_id));
-
-		$args['filter']['bool']['must'][] = $blogfilter;
-
-		$args = Config::apply_filters('searcher_query_pre_facet_filter', $args);
-
-		if (in_array('post_type', $fields)) {
-			$args['aggs']['post_type']['terms'] = array(
-				'field' => 'post_type',
-				'size' => Config::apply_filters('searcher_query_facet_size', 100, 'post_type')  // see https://github.com/elasticsearch/elasticsearch/issues/1832
-			);
-		}
-
-		// return facets
-		foreach (Config::facets() as $facet) {
-			$args['aggs'][$facet] = array(
-				'aggregations' => array(
-					"facet" => array(
-						'terms' => array(
-							'field' => $facet,
-							'size' => Config::apply_filters('searcher_query_facet_size', 100, $facet)  // see https://github.com/elasticsearch/elasticsearch/issues/1832
-						)
-					)
-				)
-			);
-
-			if (count($filters) > 0) {
-				$applicable = array();
-
-				foreach ($filters as $filter) {
-					foreach ($filter as $type) {
-						$terms = array_keys($type);
-
-						if (!in_array($facet, $terms)) {
-							// do not filter on itself when using OR
-							$applicable[] = $filter;
-						}
-					}
-				}
-
-				if (count($applicable) > 0) {
-					$args['aggs'][$facet]['filter']['bool'] = self::_filtersToBoolean($applicable);
-				}
-			}
-		}
-
-		if (is_array($numeric)) {
-			foreach (array_keys($numeric) as $facet) {
-				$ranges = Config::ranges($facet);
-
-				if (count($ranges) > 0) {
-					$args['aggs'][$facet]['aggs'] = array(
-						"range" => array(
-							'range' => array(
-								'field' => $facet,
-								'ranges' => array()
-							)
-						)
-					);
-
-					foreach ($ranges as $key => $range) {
-						$params = array();
-
-						if (isset($range['to'])) {
-							$params['to'] = $range['to'];
-						}
-
-						if (isset($range['from'])) {
-							$params['from'] = $range['from'];
-						}
-
-						$args['aggs'][$facet]['aggs']['range']['range']['ranges'][] = $params;
-					}
-				}
-			}
-		}
-
-		if (isset($args['aggs'])) {
-			foreach ($args['aggs'] as $facet => &$config) {
-				if (!isset($config['filter'])) {
-					$config['filter'] = array('bool' => array('must' => array()));
-				}
-
-				$config['filter']['bool']['must'][] = $blogfilter;
-			}
-		}
-
-		return Config::apply_filters('searcher_query_post_facet_filter', $args);
-	}
-
-	public static function _searchField($fields, $type, $exclude, $search, $facets, &$musts, &$filters, &$scored, $numeric)
-	{
-		$is_scored = false;
-		foreach ($fields as $field) {
-			if (in_array($field, $exclude)) {
-				continue;
-			}
-
-			$score = Config::score($type, $field);
-			if ($score) {
-				$is_scored = true;
-				break;
-			}
-		}
-
-		if (!$is_scored) { // phrase search when there is no score
-			
-			if ($search) {
-				// make nested objects
-				$nested_fields = Searcher::apply_hierarchy( array(), $fields );
-
-				// generate nested field query
-				$search_query = Searcher::_build_nested_search( array(), $nested_fields, $search);
-			}
-			else {
-				// match all
-			}
-		} 
-		else {
-
-			foreach ($fields as $field) {
-				if (in_array($field, $exclude)) {
-					continue;
-				}
-
-				$score = Config::score($type, $field);
-				$notanalyzed = Config::option('not_analyzed');
-
-				if ($search && $score > 0) {
-					if (strpos($search, "~") > -1 || isset($notanalyzed[$field])) {
-						// TODO: fuzzy doesn't work with english analyzer
-						$scored[] = "$field^$score";
-					} else {
-						$scored[] = sprintf(
-							"$field.%s^$score",
-							Config::apply_filters('string_language', 'english')
-						);
-					}
-				}
-
-				if (isset($numeric[$field]) && $numeric[$field]) {
-					$ranges = Config::ranges($field);
-
-					if (count($ranges) > 0) {
-						$transformed = array();
-
-						foreach ($ranges as $key => $range) {
-							$transformed[$key] = array();
-
-							if (isset($range['to'])) {
-								$transformed[$key]['lt'] = $range['to'];
-							}
-
-							if (isset($range['from'])) {
-								$transformed[$key]['gte'] = $range['from'];
-							}
-						}
-
-						self::_filterBySelectedFacets($field, $facets, 'range', $musts, $filters, $transformed);
-					}
-				} else if ($type == 'custom') {
-					self::_filterBySelectedFacets($field, $facets, 'term', $musts, $filters);
-				}
-			}
-		}
-	}
-
-	public static function _build_nested_search( $container, $nested_fields, $search ) {
-
-		foreach($nested_fields as $key => $value) {
-			if (is_array($value)) {
-				// ignore nested values initially
-			}
-			else {
-				// add standard match
-				if (!array_key_exists('multi_match', $container)) {
-					$container['multi_match'] = array();
-				}
-				if (!array_key_exists('fields', $container['multi_match'])) {
-					$container['multi_match']['fields'] = array();
-				} 
-				$container['multi_match']['fields'][] = $value;
-
-				// TODO - move search up a level
-				if (!array_key_exists('query', $container['multi_match'])) {
-					$container['multi_query']['query'] = $search;
-				}
-			}
-		}
-
-		return $container;
-	}
-
-	public static function apply_hierarchy( $hierarchy, $fields ) {
-		return Util::apply_hierarchy( $hierarchy, $fields );
-	}
-
-	public static function _filtersToBoolean($filters)
-	{
-		$types = array();
-
-		$bool = array();
-
-		foreach ($filters as $filter) {
-			// is this a safe assumption?
-			$type = array_keys($filter[array_keys($filter)[0]])[0];
-
-			if (!isset($types[$type])) {
-				$types[$type] = array();
-			}
-
-			$types[$type][] = $filter;
-		}
-
-		foreach ($types as $slug => $type) {
-			if (count($type) == 1) {
-				$bool['should'][] = $type;
-			} else {
-				$bool['should'][] = array('bool' => array('should' => $type));
-			}
-		}
-
-		$bool['minimum_should_match'] = count($bool['should']);
-
-		return $bool;
-	}
-
-	/**
-	 * @internal
-	 **/
-	public static function _filterBySelectedFacets($name, $facets, $type, &$musts, &$filters, $translate = array())
-	{
-		if (isset($facets[$name])) {
-			$facets = $facets[$name];
-
-			if (!is_array($facets)) {
-				$facets = array($facets);
-			}
-
-			foreach ($facets as $operation => $facet) {
-				if (is_string($operation) && $operation == 'or') {
-					// use filters so faceting isn't affecting, allowing the user to select more "or" options
-					$output = &$filters;
-				} else {
-					$output = &$musts;
-				}
-
-				if (is_array($facet)) {
-					foreach ($facet as $value) {
-						$output[] = array($type => array($name => isset($translate[$value]) ? $translate[$value] : $value));
-					}
-
-					continue;
-				}
-
-				$output[] = array($type => array($name => isset($translate[$facet]) ? $translate[$facet] : $facet));
-			}
-		}
+	public static function _empty_result() {
+		return array(
+			'total' => 0,
+			'ids' => array(),
+			'facets' => array(),
+			'results' => array()
+		);
 	}
 }
 
