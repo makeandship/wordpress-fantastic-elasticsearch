@@ -226,36 +226,38 @@ class Indexer
 
 	private static function _filter_acf_meta_values( $prefix, $acf, $configs) {
 		$document = array();
-		
-		foreach($acf as $acf_key => $acf_value) {
-			$name = empty($prefix) ? $acf_key : $prefix.".".$acf_key;
 
-			if (is_array( $acf_value )) {
-				if (Util::is_associative($acf_value)) {
-					$filtered = self::_filter_acf_meta_values( $name, $acf_value, $configs);
-					if (!empty($filtered)) {
-						$document[$acf_key] = $filtered;
-					}
-				}
-				else {
-					$matches = array();
-					foreach($acf_value as $index => $acf_value_item) {
-						// wrap text field in array to match method signature
-						$item = is_array($acf_value_item) ? $acf_value_item : [$acf_value_item]; 
-						$filtered = self::_filter_acf_meta_values( $name, $item, $configs);
-						
+		if (isset($acf) && $acf && is_array($acf)) {		
+			foreach($acf as $acf_key => $acf_value) {
+				$name = empty($prefix) ? $acf_key : $prefix.".".$acf_key;
+
+				if (is_array( $acf_value )) {
+					if (Util::is_associative($acf_value)) {
+						$filtered = self::_filter_acf_meta_values( $name, $acf_value, $configs);
 						if (!empty($filtered)) {
-							$matches[] = $filtered;
+							$document[$acf_key] = $filtered;
 						}
 					}
-					if (!empty($matches)) {
-						$document[$acf_key] = $matches;
+					else {
+						$matches = array();
+						foreach($acf_value as $index => $acf_value_item) {
+							// wrap text field in array to match method signature
+							$item = is_array($acf_value_item) ? $acf_value_item : [$acf_value_item]; 
+							$filtered = self::_filter_acf_meta_values( $name, $item, $configs);
+							
+							if (!empty($filtered)) {
+								$matches[] = $filtered;
+							}
+						}
+						if (!empty($matches)) {
+							$document[$acf_key] = $matches;
+						}
+					} 
+				}
+				else {
+					if (in_array($name, $configs) && !empty($acf_value)) {
+						$document[$acf_key] = $acf_value;
 					}
-				} 
-			}
-			else {
-				if (in_array($name, $configs) && !empty($acf_value)) {
-					$document[$acf_key] = $acf_value;
 				}
 			}
 		}
