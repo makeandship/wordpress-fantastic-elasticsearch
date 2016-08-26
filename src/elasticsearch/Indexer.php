@@ -17,7 +17,7 @@ class Indexer
 	 **/
 	static function per_page()
 	{
-		return Config::apply_filters('indexer_per_page', 10);
+		return Config::apply_filters('indexer_per_page', 100);
 	}
 
 	/**
@@ -69,7 +69,12 @@ class Indexer
 			// will throw an exception if index does not exist
 		}
 
-		$index->create();
+		$index->create(
+			array(
+				'number_of_shards' => Config::apply_filters('indexer_number_of_shards', 3),
+				'number_of_replicas' => Config::apply_filters('indexer_number_of_replicas', 3)
+			)
+		);
 
 		self::_map($index);
 	}
@@ -117,9 +122,11 @@ class Indexer
 			$type->getIndex()->refresh();	
 			$after = microtime(true);
 			$time = ($after-$before) . " sec";
-			error_log( '. Indexed '.$post_type.' in '.$time);
+			error_log($page.'. Indexed '.$post_type.' in '.$time);
 		}
 		
+		error_log('Page '.$page.' indexed '.$count.' documents');
+
 		return $count;
 	}
 
