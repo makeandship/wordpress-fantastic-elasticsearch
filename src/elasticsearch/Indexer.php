@@ -87,11 +87,40 @@ class Indexer
 
 		$posts = self::get_posts($page);
 
+		$count = 0;
+
+		// group bulk documents by post type
+		$documents = array();
 		foreach ($posts as $post) {
-			self::addOrUpdate($post, $index);
+			$post_type = $post->post_type;
+
+			$data = self::_build_document($post);
+			$document = new \Elastica\Document($post->ID, $data);
+
+			if (!array_key_exists($post_type, $documents)) {
+				$documents[$post_type] = array();
+			}
+
+			$documents[$post_type][] = $document;
+
+			$count++;
 		}
 
-		return count($posts);
+		// bulk update per type
+		foreach($documents as $post_type => $bulk) {
+			error_log('Adding '.count($bulk).' to '.$post_type);
+			$before = microtime(true);
+			$index = ($index ?: self::_index(true));
+			$type = $index->getType($post_type);
+
+			$type->addDocuments($bulk);
+			$type->getIndex()->refresh();	
+			$after = microtime(true);
+			$time = ($after-$before) . " sec";
+			error_log( '. Indexed '.$post_type.' in '.$time);
+		}
+		
+		return $count;
 	}
 
 	/**
@@ -128,6 +157,10 @@ class Indexer
 		if ($data) {
 			$type->addDocument(new \Elastica\Document($post->ID, $data));
 		}
+	}
+
+	static function addBulk( $documents, $index = null) {
+
 	}
 
 	/**
