@@ -17,7 +17,7 @@ class Indexer
 	 **/
 	static function per_page()
 	{
-		return Config::apply_filters('indexer_per_page', 100);
+		return Config::apply_filters('indexer_per_page', 10);
 	}
 
 	/**
@@ -71,8 +71,8 @@ class Indexer
 
 		$index->create(
 			array(
-				'number_of_shards' => Config::apply_filters('indexer_number_of_shards', 3),
-				'number_of_replicas' => Config::apply_filters('indexer_number_of_replicas', 3)
+				'number_of_shards' => Config::apply_filters('indexer_number_of_shards', 5),
+				'number_of_replicas' => Config::apply_filters('indexer_number_of_replicas', 1)
 			)
 		);
 
@@ -186,6 +186,11 @@ class Indexer
 			self::_map_values($properties, $type, Config::taxonomies(), 'taxonomy');
 			self::_map_values($properties, $type, Config::fields(), 'field');
 			self::_map_values($properties, $type, Config::meta_fields(), 'meta');
+
+			// add a completion suggester for title
+			$properties['post_title_suggest'] = array(
+				'type' => 'completion'
+			);
 
 			$properties = Config::apply_filters('indexer_map', $properties, $postType);
 
@@ -345,6 +350,11 @@ class Indexer
 	{
 		foreach (Config::fields() as $field) {
 			if (isset($post->$field)) {
+				if ($field == 'post_title') {
+					// add a completion suggester on title
+					$document[$field] = $post->$field;
+					$document[$field.'_suggest'] = $post->$field;
+				}
 				if ($field == 'post_date') {
 					$document[$field] = date('c', strtotime($post->$field));
 				} else if ($field == 'post_content') {
