@@ -69,10 +69,13 @@ class Indexer
 			// will throw an exception if index does not exist
 		}
 
+		$shards = Config::apply_filters('indexer_number_of_shards', 5);
+		$replicas = Config::apply_filters('indexer_number_of_replicas', 1);
+
 		$index->create(
 			array(
-				'number_of_shards' => Config::apply_filters('indexer_number_of_shards', 5),
-				'number_of_replicas' => Config::apply_filters('indexer_number_of_replicas', 1)
+				'number_of_shards' => $shards,
+				'number_of_replicas' => $replicas
 			)
 		);
 
