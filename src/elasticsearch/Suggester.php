@@ -10,7 +10,7 @@ namespace elasticsearch;
  **/
 class Suggester {
 
-	static function suggest( $text ) {
+	static function suggest( $text, $distance = 2 ) {
 		$result = null;
 
 		if (isset( $text ) && !empty( $text )) {
@@ -23,7 +23,7 @@ class Suggester {
 					'completion' => array(
 						'field' => 'post_title_suggest',
 						'fuzzy' => array(
-							'edit_distance' => 2
+							'edit_distance' => $distance
 						)
 					)
 				)
