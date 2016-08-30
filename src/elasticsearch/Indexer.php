@@ -74,7 +74,7 @@ class Indexer
 
 		$analysis = Config::apply_filters('indexer_analysis', array(
 			'analyzer' => array(
-                'analyzer_startswith' => array
+                'analyzer_startswith' => array(
 					'tokenizer' => 'keyword',
 					'filter'=> 'lowercase'
 				)
