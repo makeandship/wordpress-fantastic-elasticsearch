@@ -72,12 +72,24 @@ class Indexer
 		$shards = Config::apply_filters('indexer_number_of_shards', 5);
 		$replicas = Config::apply_filters('indexer_number_of_replicas', 1);
 
-		$index->create(
-			array(
-				'number_of_shards' => $shards,
-				'number_of_replicas' => $replicas
-			)
+		$analysis = Config::apply_filters('indexer_analysis', array(
+			'analyzer' => array(
+                'analyzer_startswith' => array
+					'tokenizer' => 'keyword',
+					'filter'=> 'lowercase'
+				)
+            )
+		));
+
+		$config = array(
+			'number_of_shards' => $shards,
+			'number_of_replicas' => $replicas
 		);
+		if (isset($analysis) && is_array($analysis) && count($analysis) > 0) {
+			$config['analysis'] = $analysis;
+		}
+
+		$index->create( $config );
 
 		self::_map($index);
 	}
@@ -192,7 +204,8 @@ class Indexer
 
 			// add a completion suggester for title
 			$properties['post_title_suggest'] = array(
-				'type' => 'completion'
+				'analyzer' => 'analyzer_startswith',
+				'type' => 'string'
 			);
 
 			$properties = Config::apply_filters('indexer_map', $properties, $postType);
