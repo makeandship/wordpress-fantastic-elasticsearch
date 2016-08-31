@@ -10,13 +10,62 @@ namespace elasticsearch;
  **/
 class Suggester {
 
-	static function suggest( $text, $distance = 2 ) {
+	static function suggest( $text, $categories ) {
 		$result = null;
 
 		if (isset( $text ) && !empty( $text )) {
 			$index = Indexer::_index(false);
-			$client = $index->getClient();
+			$search = new \Elastica\Search($index->getClient());
+			$search->addIndex($index);
 
+			$query = array( 
+			    'query' => array ( 
+			        'filtered' => array ( 
+			            'query' => array ( 
+			                'match' => array ( 
+			                    'post_title_suggest' => array ( 
+			                        'query' =>  strtolower($text)
+			                    )
+			                )
+			           	)
+			        )
+			    ),
+			    'fields' => array ( 
+			    	'post_type', 
+			    	'post_title', 
+			    	'link'
+			    )
+			);
+				
+			if (isset($categories) && is_array($categories) && count($categories) > 0) {
+				$query['query']['filtered']['filter'] = array();
+				foreach($categories as $taxonomy => $filters) {
+					foreach ($filters as $operation => $filter) {
+						if (is_string($operation)) {
+							$query['query']['filtered']['filter']['bool'] = array();
+
+							$bool_operator = $operation === 'or' ? 'should' : 'must';
+							if (!array_key_exists($bool_operator, $query['query']['filtered']['filter']['bool'])) {
+								$query['query']['filtered']['filter']['bool'][$bool_operator] = array();
+							}
+
+							if (is_array($filter)) {
+								foreach ($filter as $value) {
+									$query['query']['filtered']['filter']['bool'][$bool_operator][] = 
+										array(
+											'term' => array( 
+												$taxonomy => $value
+											)
+										);
+								}
+							}
+						}
+					}
+				}
+			}
+			
+
+			/*
 			$query = array(
 				'articles' => array(
 					'text' => $text,
@@ -28,8 +77,11 @@ class Suggester {
 					)
 				)
 			);
-			$path = $index->getName() . '/_suggest';
-			$response = $client->request($path, \Elastica\Request::POST, $query);
+			*/
+			$eq = new \Elastica\Query($query);
+			$eq->setFrom(0);
+			$eq->setSize(5);
+			$response = $search->search($eq);
 
 			try {
 				$result = self::_parse_response( $response );
@@ -58,17 +110,30 @@ class Suggester {
 	 */
 	static function _parse_response( $response ) {
 		$results = array();
+		$total = $response->getTotalHits();
 
-		$data = $response->getData();
+		$hits = $response->getResults();
 
-		foreach( $data['articles'] as $autocomplete) {
-			foreach($autocomplete['options'] as $option) {
-				if (array_key_exists('text', $option)) {
-					$results[] = $option['text'];
-				}
+		if ($total > 0 && count($hits) > 0) {
+			foreach($hits as $item) {
+				$hit = $item->getHit();
+				$fields = $hit['fields'];
+
+				$id = $item->getId();
+				$post_title = $fields['post_title'][0];
+				$link = $fields['link'][0];
+
+				$results[] = array(
+					'id' => $id,
+					'post_title' => $post_title,
+					'link' => $link
+				);
 			}
 		}
 
-		return $results;
+		return array(
+			'total' => $total,
+			'results' => $results
+		);
 	}
 }
