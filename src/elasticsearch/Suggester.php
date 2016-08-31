@@ -10,7 +10,7 @@ namespace elasticsearch;
  **/
 class Suggester {
 
-	static function suggest( $text, $categories ) {
+	static function suggest( $text, $categories = array(), $size = 5 ) {
 		$result = null;
 
 		if (isset( $text ) && !empty( $text )) {
@@ -78,10 +78,10 @@ class Suggester {
 				)
 			);
 			*/
-			$eq = new \Elastica\Query($query);
-			$eq->setFrom(0);
-			$eq->setSize(5);
-			$response = $search->search($eq);
+			$eq = new \Elastica\Query( $query );
+			$eq->setFrom( 0 );
+			$eq->setSize( $size );
+			$response = $search->search( $eq );
 
 			try {
 				$result = self::_parse_response( $response );
