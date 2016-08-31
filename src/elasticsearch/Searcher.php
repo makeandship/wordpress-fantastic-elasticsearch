@@ -351,7 +351,7 @@ error_log(json_encode($query));
 		if (is_array($query_filter) && !empty($query_filter)) {
 			if (is_array($query_types) && !empty($query_types)) {
 				// merge with other filters as a nested must (could be more robust here)
-				$query_filter['filter']['bool']['must'][] = $query_types;
+				$query_filter['filter']['bool']['must'][] = $query_types['filter'];
 			}
 		}
 		else {
