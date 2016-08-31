@@ -73,10 +73,40 @@ class Indexer
 		$replicas = Config::apply_filters('indexer_number_of_replicas', 1);
 
 		$analysis = Config::apply_filters('indexer_analysis', array(
+			'filter' => array(
+				'ngram_filter' => array(
+					'type' => 'nGram',
+					'min_gram' => 2,
+					'max_gram' => 20,
+					'token_chars' => array(
+						'letter',
+						'digit',
+						'punctuation',
+						'symbol'
+					)
+				)
+			),
 			'analyzer' => array(
                 'analyzer_startswith' => array(
 					'tokenizer' => 'keyword',
 					'filter'=> 'lowercase'
+				),
+				'ngram_analyzer' => array(
+					'type' => 'custom',
+					'tokenizer' => 'whitespace',
+					'filter' => array(
+						'lowercase',
+						'asciifolding',
+						'ngram_filter'
+					)
+				),
+				'whitespace_analyzer' => array(
+					'type' => 'custom',
+					'tokenizer' => 'whitespace',
+					'filter' => array(
+						'lowercase',
+						'asciifolding'
+					)
 				)
             )
 		));
@@ -204,7 +234,9 @@ class Indexer
 
 			// add a completion suggester for title
 			$properties['post_title_suggest'] = array(
-				'analyzer' => 'analyzer_startswith',
+					/*'analyzer_startswith',*/
+				"analyzer" => "ngram_analyzer",
+        		"search_analyzer" => "whitespace_analyzer",
 				'type' => 'string'
 			);
 
