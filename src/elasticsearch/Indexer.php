@@ -211,8 +211,54 @@ class Indexer
 		}
 	}
 
-	static function addBulk( $documents, $index = null) {
+	/**
+	 * Update a taxonomy entry in the taxonomy type
+	 * 
+	 * @param WP_Term $term The wordpress term to index
+	 */
+	static function add_or_update_term( $taxonomy, $term ) {
+		if (!isset($taxonomy) || empty($taxonomy)) {
+			return;
+		}
 
+		$index = ($index ?: self::_index(true));
+
+		$type_name = 'taxonomy_'.$taxonomy;
+
+		$type = $index->getType($type_name);
+
+		$data = self::_build_term( $taxonomy, $term );
+
+		if ($data) {
+			$type->addDocument(new \Elastica\Document($term->ID, $data));
+		}
+	}
+
+	static function _build_term( $taxonomy, $term ) {
+
+	}
+
+	/**
+	 * Remove a taxonomy entry in the taxonomy type
+	 * 
+	 * @param WP_Term $term The wordpress term to delete
+	 */
+	static function delete_term( $taxonomy, $term ) {
+		if (!isset($taxonomy) || empty($taxonomy)) {
+			return;
+		}
+
+		$index = ($index ?: self::_index(true));
+
+		$type_name = 'taxonomy_'.$taxonomy;
+
+		$type = $index->getType($type_name);
+
+		try {
+			$type->deleteById($term->ID);
+		} catch (\Elastica\Exception\NotFoundException $ex) {
+			// ignore
+		}
 	}
 
 	/**
@@ -241,6 +287,30 @@ class Indexer
 			);
 
 			$properties = Config::apply_filters('indexer_map', $properties, $postType);
+
+			$mapping = new \Elastica\Type\Mapping($type, $properties);
+			$mapping->send();
+		}
+
+		// map taxonomies using a standard configuration
+		foreach(Config::taxonomies() as $taxonomy) {
+			$type_name = 'taxonomy_'.$taxonomy;
+
+			$type = $index->getType( $type_name );
+			$properties = array( 
+				'name_suggest' => array(
+					'analyzer' => 'ngram_analyzer',
+	        		'search_analyzer' => 'whitespace_analyzer',
+					'type' => 'string'
+				),
+				'name' => array(
+					'type' => 'string'
+				),
+				'slug' => array( 
+					'type' => 'string',
+					'index' => 'not_analyzed'
+					)
+			);
 
 			$mapping = new \Elastica\Type\Mapping($type, $properties);
 			$mapping->send();
@@ -437,6 +507,7 @@ class Indexer
 				if (!in_array($term->slug, $document[$tax])) {
 					$document[$tax][] = $term->slug;
 					$document[$tax . '_name'][] = $term->name;
+					$document[$tax . '_suggest'][] = $term->name;
 				}
 
 				$doParents = Config::apply_filters('indexer_tax_values_parent', true, $tax);
@@ -448,6 +519,7 @@ class Indexer
 						if (!in_array($parent->slug, $document[$tax])) {
 							$document[$tax][] = $parent->slug;
 							$document[$tax . '_name'][] = $parent->name;
+							$document[$tax . '_suggest'][] = $parent->name;
 						}
 
 						if (isset($parent->parent) && $parent->parent) {
@@ -526,12 +598,21 @@ class Indexer
 			if ($kind == 'taxonomy') {
 				$tax_name_props = array('type' => 'string');
 				$tax_name_props = Config::apply_filters('indexer_map_taxonomy_name', $tax_name_props, $field);
+
+				$tax_suggest_props = array(
+					'type' => 'string',
+					'analyzer' => 'ngram_analyzer',
+        			'search_analyzer' => 'whitespace_analyzer',
+				);
 			}
 
 			$properties[$base] = $props;
 
 			if (isset($tax_name_props)) {
 				$properties[$base . '_name'] = $tax_name_props;
+			}
+			if (isset($tax_suggest_props)) {
+				$properties[$base . '_suggest'] = $tax_suggest_props;
 			}
 		}
 	}

@@ -11,6 +11,11 @@ class Hooks
 		add_action('delete_post', array(&$this, 'delete_post'));
 		add_action('trash_post', array(&$this, 'delete_post'));
 		add_action('transition_post_status', array(&$this, 'transition_post'), 10, 3);
+
+		// taxonomies
+		add_action('create_term', array(&$this, 'create_term'), 10, 3);
+		add_action('edit_term', array(&$this, 'edit_term'), 10, 3);
+		add_action('delete_term', array(&$this, 'delete_term'), 10, 3);
 	}
 
 	function save_post($post_id)
@@ -86,6 +91,42 @@ class Hooks
 		}
 
 		die();
+	}
+
+	function create_term( $term_id, $tt_id, $taxonomy ) {
+		$taxonomies = Config::types();
+
+		if ($term_id == null || !in_array($taxonomy, $taxonomies)) {
+			return;
+		}
+
+		if ($term) {
+			Indexer::add_or_update_term( $term_id );
+		}
+	}
+
+	function edit_term( $term_id, $tt_id, $taxonomy ) {
+		$taxonomies = Config::types();
+
+		if ($term_id == null || !in_array($taxonomy, $taxonomies)) {
+			return;
+		}	
+
+		$term = get_term( $term_id );
+
+		if ($term) {
+			Indexer::add_or_update_term( $term_id );
+		}
+	}
+
+	function delete_term( $term_id, $tt_id, $taxonomy ) {
+		$taxonomies = Config::types();
+
+		if ($term_id == null || !in_array($taxonomy, $taxonomies)) {
+			return;
+		}
+
+		Indexer::delete_term( $term_id );
 	}
 }
 
