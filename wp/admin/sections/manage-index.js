@@ -44,6 +44,37 @@
                 if (indexed == window.indexing.perpage) {
                     index(page + 1);
                 } else {
+                    //done();
+                    $('.total').text(window.indexing.total_terms);
+                    $('.finished').text(0);
+
+                    indexTaxonomies(1);
+                }
+            }
+        });
+    }
+
+    function indexTaxonomies(page) {
+        $.ajax({
+            url: window.indexing.ajaxurl,
+            type: 'POST',
+            data: {
+                'action': 'esreindextaxonomies',
+                'page': page
+            },
+            error: function (xhr) {
+                done(xhr.responseText);
+            },
+            success: function (indexed) {
+                var indexed = parseInt(indexed);
+
+                var total = $('.finished');
+
+                total.text(parseInt(total.text()) + indexed);
+
+                if (indexed == window.indexing.perpage) {
+                    indexTaxonomies(page + 1);
+                } else {
                     done();
                 }
             }

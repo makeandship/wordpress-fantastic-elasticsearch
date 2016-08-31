@@ -5,6 +5,7 @@ class Hooks
 {
 	function __construct()
 	{
+		add_action('wp_ajax_esreindextaxonomies', array(&$this, 'reindex_taxonomies'));
 		add_action('wp_ajax_esreindex', array(&$this, 'reindex'));
 		add_action('wp_ajax_esswap', array(&$this, 'swap'));
 		add_action('save_post', array(&$this, 'save_post'));
@@ -84,6 +85,19 @@ class Hooks
 	{
 		try {
 			echo Indexer::reindex($_POST['page']);
+		} catch (\Exception $ex) {
+			header("HTTP/1.0 500 Internal Server Error");
+
+			echo $ex->getMessage();
+		}
+
+		die();
+	}
+
+	function reindex_taxonomies()
+	{
+		try {
+			echo Indexer::reindex_taxonomies($_POST['page']);
 		} catch (\Exception $ex) {
 			header("HTTP/1.0 500 Internal Server Error");
 

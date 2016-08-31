@@ -55,6 +55,51 @@ class Indexer
 	}
 
 	/**
+	 * Retrieve the terms for the page provided
+	 *
+	 * @param integer $page The page of results to retrieve for indexing
+	 *
+	 * @return WP_Term[] terms
+	 **/
+	static function get_terms( $page = 1)
+	{
+		$taxonomies = Config::taxonomies();
+		$per_page = self::per_page();
+		$args = Config::apply_filters('indexer_get_terms', array(
+			'number' => $per_page,
+			'offset' => (($page - 1) * $per_page),
+			'taxonomy' => $taxonomies,
+			'hide_empty' => false
+		));
+
+		return get_terms($args);
+	}
+
+	/**
+	 * Retrieve the number of terms for indexing
+	 *
+	 * @param integer $page The page of results to retrieve for indexing
+	 *
+	 * @return WP_Term[] terms
+	 **/
+	static function get_term_count( $page = 1)
+	{
+		$taxonomies = Config::taxonomies();
+		$per_page = self::per_page();
+		$args = Config::apply_filters('indexer_get_terms', array(
+			'number' => $per_page,
+			'offset' => (($page - 1) * $per_page),
+			'taxonomy' => $taxonomies,
+			'fields' => 'count',
+			'hide_empty' => false
+		));
+
+		$count = get_terms($args);
+
+		return $count;
+	}
+
+	/**
 	 * Removes all data in the ElasticSearch index
 	 **/
 	static function clear()
@@ -176,6 +221,58 @@ class Indexer
 	}
 
 	/**
+	 * Re-index the taxonomy entries on the given page in the ElasticSearch index
+	 *
+	 * @param integer $page The page to re-index
+	 **/
+	static function reindex_taxonomies( $page = 1)
+	{
+		$indexName = Config::option('secondary_index') ?: Config::option('server_index');
+
+		$index = self::_client(true)->getIndex($indexName);
+
+		$terms = self::get_terms($page);
+
+		$count = 0;
+
+		// group bulk documents by post type
+		$documents = array();
+		foreach ($terms as $term) {
+			$taxonomy = $term->taxonomy;
+			$type_name = 'taxonomy_'.$taxonomy;
+
+			$data = self::_build_term($term);
+			$document = new \Elastica\Document($term->term_id, $data);
+
+			if (!array_key_exists($type_name, $documents)) {
+				$documents[$type_name] = array();
+			}
+
+			$documents[$type_name][] = $document;
+
+			$count++;
+		}
+
+		// bulk update per type
+		foreach($documents as $type_name => $bulk) {
+			error_log('Adding '.count($bulk).' to '.$type_name);
+			$before = microtime(true);
+			$index = ($index ?: self::_index(true));
+			$type = $index->getType($type_name);
+
+			$type->addDocuments($bulk);
+			$type->getIndex()->refresh();	
+			$after = microtime(true);
+			$time = ($after-$before) . " sec";
+			error_log($page.'. Indexed '.$type_name.' in '.$time);
+		}
+		
+		error_log('Page '.$page.' indexed '.$count.' documents');
+
+		return $count;
+	}
+
+	/**
 	 * Removes a post from the ElasticSearch index
 	 *
 	 * @param WP_Post $post The wordpress post to remove
@@ -234,8 +331,16 @@ class Indexer
 		}
 	}
 
-	static function _build_term( $taxonomy, $term ) {
+	static function _build_term( $term ) {
+		$document = array();
+		
+		if (isset($term) && !empty($term)) {
+			$document['name'] = $term->name;
+			$document['name_suggest'] = $term->name;
+			$document['slug'] = $term->slug;
+		}
 
+		return $document;
 	}
 
 	/**

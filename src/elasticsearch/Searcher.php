@@ -49,6 +49,9 @@ class Searcher
 		// facets (taxonomies)
 		$query_facets = self::_generate_query_facets( $config, $search, $facets );
 
+		// types (using post_types)
+		$query_types = self::_generate_query_types( $config, $search, $facets );
+
 		// ranges
 		$query_ranges = self::_generate_query_ranges( $config, $search, $facets );
 
@@ -63,11 +66,12 @@ class Searcher
 			$config,
 			$query_freetext,
 			$query_facets,
+			$query_types,
 			$query_ranges,
 			$query_scores,
 			$query_aggregations
 			);
-
+error_log(json_encode($query));
 		return $query;
 	}
 
@@ -91,7 +95,8 @@ class Searcher
 			'exclude' => Config::apply_filters('searcher_query_exclude_fields', array('post_date')),
 			'fields' => Config::fields(),
 			'meta_fields' => Config::meta_fields(),
-			'fuzzy' => Config::option('fuzzy')
+			'fuzzy' => Config::option('fuzzy'),
+			'types' => Config::types()
 		);
 	}
 
@@ -183,6 +188,37 @@ class Searcher
 					}
 				}
 			}
+		}
+
+		return $query;
+	}
+
+	/**
+	 * Generate filter structures based on post types.  This excludes taxonomy types
+	 *
+	 * @param $config - plugin configuration
+	 * @param $search - free-text query 
+	 * @param $config - facets - taxonomy query values
+	 *
+	 * @return $query - filter structures for query filter['bool']
+	 */
+	public static function _generate_query_types( $config, $search, $facets ) {
+		$query = array(
+			'filter' => array(
+				'bool' => array(
+					'should' => array(
+
+					)
+				)
+			)
+		);
+
+		foreach($config['types'] as $post_type) {
+			$query['filter']['bool']['should'][] = array(
+				'type' => array(
+					'value' => $post_type
+				)
+			);
 		}
 
 		return $query;
@@ -298,6 +334,7 @@ class Searcher
 		$config,
 		$query_freetext,
 		$query_facets,
+		$query_types,
 		$query_ranges,
 		$query_scores,
 		$query_aggregations ) {
@@ -310,12 +347,23 @@ class Searcher
 			}
 		}
 
+		$query_filter = $query_facets;
+		if (is_array($query_filter) && !empty($query_filter)) {
+			if (is_array($query_types) && !empty($query_types)) {
+				// merge with other filters as a nested must (could be more robust here)
+				$query_filter['filter']['bool']['must'][] = $query_types;
+			}
+		}
+		else {
+			$query_filter = $query_types;
+		}
+
 		if (is_array($query_freetext) && !empty($query_freetext) && 
-			is_array($query_facets) && !empty($query_facets) ) {
+			is_array($query_filter) && !empty($query_filter) ) {
 			
 			$query = array(
 				'query' => array( 
-					'filtered' => array_merge($query_freetext, $query_facets)
+					'filtered' => array_merge($query_freetext, $query_filter)
 				)
 			);
 

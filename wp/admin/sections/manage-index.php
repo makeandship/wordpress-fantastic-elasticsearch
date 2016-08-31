@@ -7,6 +7,7 @@ add_action('admin_head-toplevel_page_elastic_search', function () {
 	wp_localize_script('es-indexing', 'indexing', array(
 		'ajaxurl' => admin_url('admin-ajax.php'),
 		'total' => Indexer::get_count(),
+		'total_terms' => Indexer::get_term_count(),
 		'perpage' => Indexer::per_page()
 	));
 });
