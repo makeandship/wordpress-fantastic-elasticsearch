@@ -34,7 +34,7 @@ class Suggester {
 			                'match' => array ( 
 			                    $field => array ( 
 			                        'query' =>  strtolower($text),
-			                        'fuzziness' => 'AUTO'
+			                        'fuzziness' => 1
 			                    )
 			                )
 			           	)
