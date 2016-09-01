@@ -27,7 +27,7 @@ class Indexer
 	 *
 	 * @return WP_Post[] posts
 	 **/
-	static function get_posts($page = 1)
+	static function get_posts_by_page($page = 1)
 	{
 		$args = Config::apply_filters('indexer_get_posts', array(
 			'posts_per_page' => self::per_page(),
@@ -61,7 +61,7 @@ class Indexer
 	 *
 	 * @return WP_Term[] terms
 	 **/
-	static function get_terms( $page = 1)
+	static function get_terms_by_page( $page = 1)
 	{
 		$taxonomies = Config::taxonomies();
 		$per_page = self::per_page();
@@ -180,7 +180,7 @@ class Indexer
 
 		$index = self::_client(true)->getIndex($indexName);
 
-		$posts = self::get_posts($page);
+		$posts = self::get_posts_by_page($page);
 
 		$count = 0;
 
@@ -231,7 +231,7 @@ class Indexer
 
 		$index = self::_client(true)->getIndex($indexName);
 
-		$terms = self::get_terms($page);
+		$terms = self::get_terms_by_page($page);
 
 		$count = 0;
 
