@@ -82,13 +82,11 @@ class Indexer
 	 *
 	 * @return WP_Term[] terms
 	 **/
-	static function get_term_count( $page = 1)
+	static function get_term_count( )
 	{
 		$taxonomies = Config::taxonomies();
 		$per_page = self::per_page();
 		$args = Config::apply_filters('indexer_get_terms', array(
-			'number' => $per_page,
-			'offset' => (($page - 1) * $per_page),
 			'taxonomy' => $taxonomies,
 			'fields' => 'count',
 			'hide_empty' => false
