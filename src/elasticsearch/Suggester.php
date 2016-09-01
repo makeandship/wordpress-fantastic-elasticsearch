@@ -10,7 +10,16 @@ namespace elasticsearch;
  **/
 class Suggester {
 
-	static function suggest( $text, $categories = array(), $size = 5 ) {
+	static function suggest( $args ) {
+		
+		$field = $args['field'];
+		$text = $args['text'];
+		$categories = $args['categories'];
+		$size = $args['size'];
+		$fields = $args['fields'];
+
+		//$field, $text, $categories = array(), $size = 5
+
 		$result = null;
 
 		if (isset( $text ) && !empty( $text )) {
@@ -23,18 +32,14 @@ class Suggester {
 			        'filtered' => array ( 
 			            'query' => array ( 
 			                'match' => array ( 
-			                    'post_title_suggest' => array ( 
+			                    $field => array ( 
 			                        'query' =>  strtolower($text)
 			                    )
 			                )
 			           	)
 			        )
 			    ),
-			    'fields' => array ( 
-			    	'post_type', 
-			    	'post_title', 
-			    	'link'
-			    )
+			    'fields' => $fields
 			);
 				
 			if (isset($categories) && is_array($categories) && count($categories) > 0) {
@@ -64,27 +69,13 @@ class Suggester {
 				}
 			}
 			
-
-			/*
-			$query = array(
-				'articles' => array(
-					'text' => $text,
-					'completion' => array(
-						'field' => 'post_title_suggest',
-						'fuzzy' => array(
-							'edit_distance' => $distance
-						)
-					)
-				)
-			);
-			*/
 			$eq = new \Elastica\Query( $query );
 			$eq->setFrom( 0 );
 			$eq->setSize( $size );
 			$response = $search->search( $eq );
 
 			try {
-				$result = self::_parse_response( $response );
+				$result = self::_parse_response( $response, $fields );
 			}
 			catch (\Exception $ex) {
 				error_log($ex);
@@ -108,7 +99,7 @@ class Suggester {
 	/**
 	 * Return a valid response
 	 */
-	static function _parse_response( $response ) {
+	static function _parse_response( $response, $fields ) {
 		$results = array();
 		$total = $response->getTotalHits();
 
@@ -117,17 +108,23 @@ class Suggester {
 		if ($total > 0 && count($hits) > 0) {
 			foreach($hits as $item) {
 				$hit = $item->getHit();
-				$fields = $hit['fields'];
+				$hit_fields = $hit['fields'];
 
 				$id = $item->getId();
-				$post_title = $fields['post_title'][0];
-				$link = $fields['link'][0];
 
-				$results[] = array(
-					'id' => $id,
-					'post_title' => $post_title,
-					'link' => $link
+				$result = array(
+					'id' => $id
 				);
+
+				foreach($fields as $field) {
+					$item = $hit_fields[$field];
+					if (is_array($item) && count($item) == 1) {
+						$item = $item[0];
+					}
+					$result[$field] = $item;
+				}
+
+				$results[] = $result;
 			}
 		}
 
