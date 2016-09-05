@@ -27,7 +27,7 @@ class Searcher
 		$query = self::_generate_query( $search, $facets );
 		error_log( json_encode( $query ) );
 
-		$sort_by_date = (!isset($search) || empty($empty)) ? true : false;
+		$sort_by_date = (!isset($search) || empty($search)) ? true : false;
 
 		// need to do rethink the signature of the search() method, arg list can't just keep growing
 		return self::_execute($query, $page_index, $size, $sort_by_date);
