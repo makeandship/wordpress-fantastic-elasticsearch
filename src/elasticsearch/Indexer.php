@@ -118,8 +118,8 @@ class Indexer
 		$analysis = Config::apply_filters('indexer_analysis', array(
 			'filter' => array(
 				'ngram_filter' => array(
-					'type' => 'nGram',
-					'min_gram' => 2,
+					'type' => 'edge_ngram',
+					'min_gram' => 1,
 					'max_gram' => 20,
 					'token_chars' => array(
 						'letter',
