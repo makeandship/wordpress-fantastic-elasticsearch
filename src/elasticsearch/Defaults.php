@@ -80,6 +80,7 @@ class Defaults
 					
 					$fields = acf_get_fields_by_id( $field_group_id );
 
+					// ensure fields populated
 					if (isset($fields) && !empty($fields)) {
 						foreach($fields as $field) {
 							$keys = array_merge( $keys, self::meta_fields_type( null, $field ) );
